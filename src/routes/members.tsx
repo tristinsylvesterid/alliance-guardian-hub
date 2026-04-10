@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { RankBadge } from "@/components/RankBadge";
 import { MemberFormDialog } from "@/components/MemberFormDialog";
 import { ArchiveConfirmDialog } from "@/components/ArchiveConfirmDialog";
-import { MOCK_MEMBERS, type Member } from "@/lib/mock-data";
+import { type Member } from "@/lib/mock-data";
 import { calculateTotalScore, getRank, METRIC_DEFINITIONS } from "@/lib/scoring";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
+import { useMembers } from "@/hooks/use-members";
 import { Search, Plus, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/members")({
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/members")({
 
 function MembersPage() {
   const [search, setSearch] = useState("");
-  const [members, setMembers] = useState<Member[]>(() => [...MOCK_MEMBERS]);
+  const { members, setMembers } = useMembers();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Member | null>(null);
