@@ -411,10 +411,10 @@ function SvsPlanningPage() {
                             <Select
                               value={entry.role}
                               onValueChange={(v) => handleRoleChange(entry.memberId, v as SvsRole)}
-                              disabled={entry.pollResponse === "no"}
+                              disabled={entry.pollResponse === "no" || entry.team === "fighting_elsewhere"}
                             >
-                              <SelectTrigger className="w-32 h-8">
-                                <SelectValue />
+                              <SelectTrigger className={`w-32 h-8 ${entry.team === "fighting_elsewhere" ? "opacity-40" : ""}`}>
+                                <SelectValue>{entry.team === "fighting_elsewhere" ? "—" : ROLE_LABELS[entry.role]}</SelectValue>
                               </SelectTrigger>
                               <SelectContent>
                                 {(Object.entries(ROLE_LABELS) as [SvsRole, string][]).map(([key, label]) => (
