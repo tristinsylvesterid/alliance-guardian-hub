@@ -5,6 +5,7 @@ export type PollResponse = "yes" | "no" | "";
 export type SvsTeam = "team1" | "team2" | "team3" | "team4" | "fighting_elsewhere";
 export type SvsRole = "fighter" | "deputy" | "commander" | "intel_officer";
 export type SvsMode = "invading" | "defending" | "";
+export type SvsResult = "win" | "lose" | "";
 
 export interface SvsMemberEntry {
   memberId: string;
@@ -23,6 +24,9 @@ export interface SvsPlan {
   createdAt: string;
   mode: SvsMode;
   opponentServer: string;
+  result: SvsResult;
+  capitalPercentage: number;
+  notes: string;
   entries: SvsMemberEntry[];
 }
 
@@ -65,6 +69,9 @@ export function useSvsPlans() {
       createdAt: now.toISOString(),
       mode: "",
       opponentServer: "",
+      result: "",
+      capitalPercentage: 0,
+      notes: "",
       entries: members.map((m) => ({
         memberId: m.id,
         name: m.name,
@@ -94,7 +101,7 @@ export function useSvsPlans() {
     notify();
   }
 
-  function updatePlan(planId: string, updates: Partial<Pick<SvsPlan, "mode" | "opponentServer">>) {
+  function updatePlan(planId: string, updates: Partial<Pick<SvsPlan, "mode" | "opponentServer" | "result" | "capitalPercentage" | "notes">>) {
     globalPlans = globalPlans.map((p) =>
       p.id === planId ? { ...p, ...updates } : p
     );
