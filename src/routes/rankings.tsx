@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RankBadge } from "@/components/RankBadge";
-import { MOCK_MEMBERS } from "@/lib/mock-data";
+import { useMembers } from "@/hooks/use-members";
 import { calculateTotalScore, getRank, METRIC_DEFINITIONS, calculateMetricPoints, MAX_TOTAL_POINTS, type Rank } from "@/lib/scoring";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -17,7 +17,9 @@ export const Route = createFileRoute("/rankings")({
 });
 
 function RankingsPage() {
-  const membersWithScores = MOCK_MEMBERS.map((m) => {
+  const { members } = useMembers();
+
+  const membersWithScores = members.map((m) => {
     const score = calculateTotalScore(m.metrics);
     const rank = getRank(score, m.leadershipRank);
     const breakdown = METRIC_DEFINITIONS.map((def) => ({
@@ -38,7 +40,6 @@ function RankingsPage() {
           <p className="mt-1 text-sm text-muted-foreground">Class rankings based on scored metrics · Max {MAX_TOTAL_POINTS} points</p>
         </div>
 
-        {/* Rank Thresholds */}
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-gold">Rank Thresholds</CardTitle>
@@ -61,7 +62,6 @@ function RankingsPage() {
           </CardContent>
         </Card>
 
-        {/* Members by Rank */}
         <Tabs defaultValue="all">
           <TabsList className="bg-secondary">
             <TabsTrigger value="all">All</TabsTrigger>

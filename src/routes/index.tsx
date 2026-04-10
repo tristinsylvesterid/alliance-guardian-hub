@@ -2,47 +2,49 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RankBadge } from "@/components/RankBadge";
-import { MOCK_MEMBERS, EVENT_TYPES } from "@/lib/mock-data";
-import { calculateTotalScore, getRank, METRIC_DEFINITIONS, MAX_TOTAL_POINTS, type Rank } from "@/lib/scoring";
+import { EVENT_TYPES } from "@/lib/mock-data";
+import { useMembers } from "@/hooks/use-members";
+import { calculateTotalScore, getRank, MAX_TOTAL_POINTS, type Rank } from "@/lib/scoring";
 import { Users, Trophy, Calendar, TrendingUp } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
   head: () => ({
     meta: [
-      { title: "Dashboard | Last Z Alliance Manager" },
-      { name: "description", content: "Alliance overview and key stats for Last Z Survival Shooter" },
+      { title: "Dashboard | nOva Alliance Manager" },
+      { name: "description", content: "Alliance overview and key stats" },
     ],
   }),
 });
 
 function Dashboard() {
-  const membersWithScores = MOCK_MEMBERS.map((m) => {
+  const { members: rawMembers } = useMembers();
+
+  const membersWithScores = rawMembers.map((m) => {
     const score = calculateTotalScore(m.metrics);
     const rank = getRank(score, m.leadershipRank);
     return { ...m, score, rank };
   }).sort((a, b) => b.score - a.score);
 
+  const total = rawMembers.length;
   const rankCounts: Record<Rank, number> = { R1: 0, R2: 0, R3: 0, R4: 0, R5: 0 };
   membersWithScores.forEach((m) => rankCounts[m.rank]++);
 
-  const avgScore = Math.round(membersWithScores.reduce((s, m) => s + m.score, 0) / membersWithScores.length);
+  const avgScore = total ? Math.round(membersWithScores.reduce((s, m) => s + m.score, 0) / total) : 0;
 
   const eventAttendance = EVENT_TYPES.map((e) => ({
     ...e,
-    count: MOCK_MEMBERS.filter((m) => m.events[e.key]).length,
+    count: rawMembers.filter((m) => m.events[e.key]).length,
   }));
 
   return (
     <AppLayout>
       <div className="space-y-8">
-        {/* Header */}
         <div>
           <h1 className="font-heading text-3xl font-bold tracking-wide text-gold">Dashboard</h1>
           <p className="mt-1 text-sm text-muted-foreground">Alliance overview and key metrics</p>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -50,7 +52,7 @@ function Dashboard() {
               <Users className="h-4 w-4 text-gold" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{MOCK_MEMBERS.length}</div>
+              <div className="text-2xl font-bold text-foreground">{total}</div>
             </CardContent>
           </Card>
           <Card>
@@ -82,7 +84,6 @@ function Dashboard() {
           </Card>
         </div>
 
-        {/* Rank Distribution & Event Attendance */}
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
@@ -97,7 +98,7 @@ function Dashboard() {
                       <div className="h-2 rounded-full bg-secondary">
                         <div
                           className="h-2 rounded-full bg-gold transition-all"
-                          style={{ width: `${(rankCounts[rank] / MOCK_MEMBERS.length) * 100}%` }}
+                          style={{ width: `${total ? (rankCounts[rank] / total) * 100 : 0}%` }}
                         />
                       </div>
                     </div>
@@ -121,10 +122,10 @@ function Dashboard() {
                       <div className="h-2 w-32 rounded-full bg-secondary">
                         <div
                           className="h-2 rounded-full bg-gold transition-all"
-                          style={{ width: `${(e.count / MOCK_MEMBERS.length) * 100}%` }}
+                          style={{ width: `${total ? (e.count / total) * 100 : 0}%` }}
                         />
                       </div>
-                      <span className="text-sm text-muted-foreground">{e.count}/{MOCK_MEMBERS.length}</span>
+                      <span className="text-sm text-muted-foreground">{e.count}/{total}</span>
                     </div>
                   </div>
                 ))}
@@ -133,7 +134,6 @@ function Dashboard() {
           </Card>
         </div>
 
-        {/* Top Members */}
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-lg text-gold">Top Members</CardTitle>

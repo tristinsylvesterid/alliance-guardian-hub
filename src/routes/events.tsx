@@ -1,12 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RankBadge } from "@/components/RankBadge";
-import { MOCK_MEMBERS, EVENT_TYPES } from "@/lib/mock-data";
+import { EVENT_TYPES } from "@/lib/mock-data";
+import { useMembers } from "@/hooks/use-members";
 import { calculateTotalScore, getRank } from "@/lib/scoring";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, X } from "lucide-react";
 
 export const Route = createFileRoute("/events")({
@@ -20,7 +19,9 @@ export const Route = createFileRoute("/events")({
 });
 
 function EventsPage() {
-  const members = MOCK_MEMBERS.map((m) => {
+  const { members: rawMembers } = useMembers();
+
+  const members = rawMembers.map((m) => {
     const score = calculateTotalScore(m.metrics);
     const rank = getRank(score, m.leadershipRank);
     return { ...m, score, rank };
@@ -34,7 +35,6 @@ function EventsPage() {
           <p className="mt-1 text-sm text-muted-foreground">Track attendance across alliance events</p>
         </div>
 
-        {/* Summary */}
         <div className="grid gap-4 md:grid-cols-3">
           {EVENT_TYPES.map((event) => {
             const attending = members.filter((m) => m.events[event.key]).length;
@@ -51,7 +51,7 @@ function EventsPage() {
                   <div className="mt-2 h-2 rounded-full bg-secondary">
                     <div
                       className="h-2 rounded-full bg-gold transition-all"
-                      style={{ width: `${(attending / members.length) * 100}%` }}
+                      style={{ width: `${members.length ? (attending / members.length) * 100 : 0}%` }}
                     />
                   </div>
                 </CardContent>
@@ -60,7 +60,6 @@ function EventsPage() {
           })}
         </div>
 
-        {/* Attendance Table */}
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-gold">Attendance Roster</CardTitle>
