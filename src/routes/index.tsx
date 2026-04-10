@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RankBadge } from "@/components/RankBadge";
-import { EVENT_TYPES } from "@/lib/mock-data";
+import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents } from "@/hooks/use-weekly-events";
 import { calculateTotalScore, getRank, MAX_TOTAL_POINTS, type Rank } from "@/lib/scoring";
@@ -20,6 +20,7 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const { members: rawMembers } = useMembers();
+  const { eventTypes } = useEventTypes();
   const { currentWeek, getStatus } = useWeeklyEvents();
 
   const membersWithScores = rawMembers.map((m) => {
@@ -76,7 +77,7 @@ function Dashboard() {
               <Calendar className="h-4 w-4 text-gold" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{EVENT_TYPES.length}</div>
+              <div className="text-2xl font-bold text-foreground">{eventTypes.length}</div>
             </CardContent>
           </Card>
         </div>
@@ -119,7 +120,7 @@ function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {EVENT_TYPES.map((e) => {
+                {eventTypes.map((e) => {
                   const isSvsOff = e.key === "svs" && currentWeek && !currentWeek.svsActive;
                   const count = currentWeek
                     ? (isSvsOff ? 0 : rawMembers.filter((m) => getStatus(currentWeek.weekId, m.id, e.key) === "check").length)

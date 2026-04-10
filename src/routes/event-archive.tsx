@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RankBadge } from "@/components/RankBadge";
-import { EVENT_TYPES } from "@/lib/mock-data";
+import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
 import { calculateTotalScore, getRank } from "@/lib/scoring";
@@ -29,6 +29,7 @@ function StatusIcon({ status }: { status: EventStatus }) {
 
 function EventArchivePage() {
   const { members: rawMembers } = useMembers();
+  const { eventTypes } = useEventTypes();
   const { archivedWeeks, getStatus } = useWeeklyEvents();
   const [selectedWeekId, setSelectedWeekId] = useState(archivedWeeks[0]?.weekId ?? "");
 
@@ -85,7 +86,7 @@ function EventArchivePage() {
         {selectedWeek && (
           <>
             <div className="grid gap-4 md:grid-cols-3">
-              {EVENT_TYPES.map((event) => {
+              {eventTypes.map((event) => {
                 const isSvsOff = event.key === "svs" && !selectedWeek.svsActive;
                 const attending = isSvsOff
                   ? 0
@@ -134,7 +135,7 @@ function EventArchivePage() {
                     <TableRow className="border-border hover:bg-transparent">
                       <TableHead className="text-gold-muted font-heading">Member</TableHead>
                       <TableHead className="text-gold-muted font-heading">Rank</TableHead>
-                      {EVENT_TYPES.map((e) => (
+                      {eventTypes.map((e) => (
                         <TableHead key={e.key} className="text-gold-muted font-heading text-center">
                           {e.name}
                           {e.key === "svs" && !selectedWeek.svsActive && (
@@ -149,7 +150,7 @@ function EventArchivePage() {
                       <TableRow key={m.id} className="border-border/50">
                         <TableCell className="font-medium text-foreground">{m.name}</TableCell>
                         <TableCell><RankBadge rank={m.rank} /></TableCell>
-                        {EVENT_TYPES.map((e) => {
+                        {eventTypes.map((e) => {
                           const status = getStatus(selectedWeekId, m.id, e.key);
                           const isSvsOff = e.key === "svs" && !selectedWeek.svsActive;
                           return (
