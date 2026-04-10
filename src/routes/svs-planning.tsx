@@ -205,13 +205,15 @@ function SvsPlanningPage() {
     setConflictDialog(null);
   }
 
+  const isDefending = selectedPlan?.mode === "defending";
+
   const SORT_COLUMNS: [SortKey, string, string][] = [
     ["name", "Member", "w-44"],
     ["power", "Power (M)", "w-24"],
     ["pollResponse", "Poll", "w-28"],
     ["team", "Team", "w-36"],
     ["role", "Role", "w-36"],
-    ["location", "Location (X / Y)", "w-40"],
+    ...(isDefending ? [["location", "Location (X / Y)", "w-40"] as [SortKey, string, string]] : []),
   ];
 
   return (
@@ -425,24 +427,30 @@ function SvsPlanningPage() {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
-                                value={entry.locationX || ""}
-                                placeholder="X"
-                                onChange={(e) => handleLocationChange(entry.memberId, "locationX", parseInt(e.target.value) || 0)}
-                                className="w-16 h-8"
-                              />
-                              <Input
-                                type="number"
-                                value={entry.locationY || ""}
-                                placeholder="Y"
-                                onChange={(e) => handleLocationChange(entry.memberId, "locationY", parseInt(e.target.value) || 0)}
-                                className="w-16 h-8"
-                              />
-                            </div>
-                          </TableCell>
+                          {isDefending && (
+                            <TableCell>
+                              {entry.team !== "fighting_elsewhere" ? (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="number"
+                                    value={entry.locationX || ""}
+                                    placeholder="X"
+                                    onChange={(e) => handleLocationChange(entry.memberId, "locationX", parseInt(e.target.value) || 0)}
+                                    className="w-16 h-8"
+                                  />
+                                  <Input
+                                    type="number"
+                                    value={entry.locationY || ""}
+                                    placeholder="Y"
+                                    onChange={(e) => handleLocationChange(entry.memberId, "locationY", parseInt(e.target.value) || 0)}
+                                    className="w-16 h-8"
+                                  />
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground/40">—</span>
+                              )}
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
