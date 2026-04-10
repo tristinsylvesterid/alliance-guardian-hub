@@ -234,15 +234,32 @@ function SvsPlanningPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-48">Member</TableHead>
-                      <TableHead className="w-28">Power (M)</TableHead>
-                      <TableHead className="w-32">Poll Response</TableHead>
-                      <TableHead className="w-40">Team</TableHead>
-                      <TableHead className="w-40">Role</TableHead>
+                      {([
+                        ["name", "Member", "w-48"],
+                        ["power", "Power (M)", "w-28"],
+                        ["pollResponse", "Poll Response", "w-32"],
+                        ["team", "Team", "w-40"],
+                        ["role", "Role", "w-40"],
+                      ] as [SortKey, string, string][]).map(([key, label, width]) => (
+                        <TableHead
+                          key={key}
+                          className={`${width} cursor-pointer select-none hover:text-foreground transition-colors`}
+                          onClick={() => toggleSort(key)}
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            {label}
+                            {sortKey === key ? (
+                              sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                            ) : (
+                              <ArrowUpDown className="h-3 w-3 opacity-30" />
+                            )}
+                          </span>
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {selectedPlan.entries.map((entry) => (
+                    {sortedEntries.map((entry) => (
                       <TableRow key={entry.memberId}>
                         <TableCell className="font-medium">
                           {entry.name}
