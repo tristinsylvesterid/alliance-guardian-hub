@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { RankBadge } from "@/components/RankBadge";
-import { EVENT_TYPES } from "@/lib/mock-data";
+import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
 import { calculateTotalScore, getRank } from "@/lib/scoring";
@@ -32,6 +32,7 @@ function StatusIcon({ status }: { status: EventStatus }) {
 
 function EventsPage() {
   const { members: rawMembers, setMembers } = useMembers();
+  const { eventTypes } = useEventTypes();
   const { activeWeeks, getStatus, setStatus, toggleSvs, startNewWeek } = useWeeklyEvents();
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
 
@@ -64,13 +65,11 @@ function EventsPage() {
 
   function handleStartNewWeek() {
     startNewWeek();
-    // Select the new current week
     setTimeout(() => {
       setSelectedWeekId(activeWeeks[0]?.weekId ?? "");
     }, 0);
   }
 
-  // Sync selectedWeekId if weeks change
   if (!activeWeeks.find((w) => w.weekId === selectedWeekId) && activeWeeks[0]) {
     setSelectedWeekId(activeWeeks[0].weekId);
   }
@@ -102,9 +101,9 @@ function EventsPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          {EVENT_TYPES.map((event) => {
-            const isSvsOff = event.key === "svs" && selectedWeek && !selectedWeek.svsActive;
+        <div className={`grid gap-4 md:grid-cols-${Math.min(eventTypes.length, 4)}`}>
+          {eventTypes.map((event) => {
+            const isSvsOff = event.hasSvsToggle && selectedWeek && !selectedWeek.svsActive;
             const attending = isSvsOff
               ? 0
               : members.filter((m) => getStatus(selectedWeekId, m.id, event.key) === "check").length;
@@ -114,7 +113,7 @@ function EventsPage() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="font-heading text-gold">{event.name}</CardTitle>
-                    {event.key === "svs" && (
+                    {event.hasSvsToggle && (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">
                           {selectedWeek?.svsActive ? "Active" : "Off"}
@@ -166,10 +165,10 @@ function EventsPage() {
                 <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="text-gold-muted font-heading">Member</TableHead>
                   <TableHead className="text-gold-muted font-heading">Rank</TableHead>
-                  {EVENT_TYPES.map((e) => (
+                  {eventTypes.map((e) => (
                     <TableHead key={e.key} className="text-gold-muted font-heading text-center">
                       {e.name}
-                      {e.key === "svs" && selectedWeek && !selectedWeek.svsActive && (
+                      {e.hasSvsToggle && selectedWeek && !selectedWeek.svsActive && (
                         <span className="ml-1 text-xs text-muted-foreground">(Off)</span>
                       )}
                     </TableHead>
@@ -181,9 +180,9 @@ function EventsPage() {
                   <TableRow key={m.id} className="border-border/50">
                     <TableCell className="font-medium text-foreground">{m.name}</TableCell>
                     <TableCell><RankBadge rank={m.rank} /></TableCell>
-                    {EVENT_TYPES.map((e) => {
+                    {eventTypes.map((e) => {
                       const status = getStatus(selectedWeekId, m.id, e.key);
-                      const isSvsOff = e.key === "svs" && selectedWeek && !selectedWeek.svsActive;
+                      const isSvsOff = e.hasSvsToggle && selectedWeek && !selectedWeek.svsActive;
                       const canEdit = isCurrentWeek && !isSvsOff;
 
                       return (
