@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -36,11 +37,12 @@ import {
   ROLE_LABELS,
   type SvsTeam,
   type SvsRole,
+  type SvsMode,
   type PollResponse,
 } from "@/hooks/use-svs-plans";
-import { Swords, Plus, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Swords, Plus, ArrowUpDown, ArrowUp, ArrowDown, Shield, Target } from "lucide-react";
 
-type SortKey = "name" | "power" | "pollResponse" | "team" | "role";
+type SortKey = "name" | "power" | "pollResponse" | "team" | "role" | "location";
 type SortDir = "asc" | "desc";
 
 export const Route = createFileRoute("/svs-planning")({
@@ -54,15 +56,15 @@ export const Route = createFileRoute("/svs-planning")({
 });
 
 const OFFICER_ROLES: SvsRole[] = ["deputy", "commander", "intel_officer"];
+const ALL_TEAMS: SvsTeam[] = ["team1", "team2", "team3", "team4", "fighting_elsewhere"];
 
 function SvsPlanningPage() {
-  const { members } = useMembers();
-  const { plans, createPlan, updateEntry } = useSvsPlans();
+  const { members, setMembers } = useMembers();
+  const { plans, createPlan, updateEntry, updatePlan } = useSvsPlans();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
-  // Role conflict dialog state
   const [conflictDialog, setConflictDialog] = useState<{
     open: boolean;
     planId: string;
@@ -89,11 +91,31 @@ function SvsPlanningPage() {
         case "pollResponse": cmp = a.pollResponse.localeCompare(b.pollResponse); break;
         case "team": cmp = TEAM_ORDER[a.team] - TEAM_ORDER[b.team]; break;
         case "role": cmp = ROLE_ORDER[a.role] - ROLE_ORDER[b.role]; break;
+        case "location": cmp = a.locationX - b.locationX || a.locationY - b.locationY; break;
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
     return entries;
   }, [selectedPlan, sortKey, sortDir]);
+
+  // Team summary
+  const teamSummary = useMemo(() => {
+    if (!selectedPlan) return {};
+    const summary: Record<string, { fighters: number; deputies: number; commanders: number; intel: number; total: number }> = {};
+    for (const t of ALL_TEAMS) {
+      summary[t] = { fighters: 0, deputies: 0, commanders: 0, intel: 0, total: 0 };
+    }
+    for (const e of selectedPlan.entries) {
+      const s = summary[e.team];
+      if (!s) continue;
+      s.total++;
+      if (e.role === "fighter") s.fighters++;
+      else if (e.role === "deputy") s.deputies++;
+      else if (e.role === "commander") s.commanders++;
+      else if (e.role === "intel_officer") s.intel++;
+    }
+    return summary;
+  }, [selectedPlan]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -114,6 +136,19 @@ function SvsPlanningPage() {
     updateEntry(selectedPlan.id, memberId, { power: newPower });
   }
 
+  function handleLocationChange(memberId: string, axis: "locationX" | "locationY", value: number) {
+    if (!selectedPlan) return;
+    updateEntry(selectedPlan.id, memberId, { [axis]: value });
+    // Sync back to member profile
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.id === memberId
+          ? { ...m, metrics: { ...m.metrics, [axis]: value } }
+          : m
+      )
+    );
+  }
+
   function handlePollChange(memberId: string, response: PollResponse) {
     if (!selectedPlan) return;
     const updates: { pollResponse: PollResponse; team?: SvsTeam; role?: SvsRole } = {
@@ -130,7 +165,6 @@ function SvsPlanningPage() {
     if (!selectedPlan) return;
     const entry = selectedPlan.entries.find((e) => e.memberId === memberId);
     if (!entry) return;
-    // If member had an officer role, reset to fighter when changing team
     const role = OFFICER_ROLES.includes(entry.role) ? "fighter" : entry.role;
     updateEntry(selectedPlan.id, memberId, { team: newTeam, role });
   }
@@ -140,7 +174,6 @@ function SvsPlanningPage() {
     const entry = selectedPlan.entries.find((e) => e.memberId === memberId);
     if (!entry) return;
 
-    // Check for officer conflict
     if (OFFICER_ROLES.includes(newRole)) {
       const existing = selectedPlan.entries.find(
         (e) =>
@@ -166,20 +199,24 @@ function SvsPlanningPage() {
 
   function handleConflictConfirm() {
     if (!conflictDialog) return;
-    // Demote existing officer to fighter
-    updateEntry(conflictDialog.planId, conflictDialog.existingMemberId, {
-      role: "fighter",
-    });
-    // Assign new member the role
-    updateEntry(conflictDialog.planId, conflictDialog.memberId, {
-      role: conflictDialog.newRole,
-    });
+    updateEntry(conflictDialog.planId, conflictDialog.existingMemberId, { role: "fighter" });
+    updateEntry(conflictDialog.planId, conflictDialog.memberId, { role: conflictDialog.newRole });
     setConflictDialog(null);
   }
+
+  const SORT_COLUMNS: [SortKey, string, string][] = [
+    ["name", "Member", "w-44"],
+    ["power", "Power (M)", "w-24"],
+    ["pollResponse", "Poll", "w-28"],
+    ["team", "Team", "w-36"],
+    ["role", "Role", "w-36"],
+    ["location", "Location (X / Y)", "w-40"],
+  ];
 
   return (
     <AppLayout>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold text-gold flex items-center gap-3">
@@ -192,18 +229,13 @@ function SvsPlanningPage() {
           </div>
           <div className="flex items-center gap-3">
             {plans.length > 1 && (
-              <Select
-                value={selectedPlan?.id ?? ""}
-                onValueChange={setSelectedPlanId}
-              >
+              <Select value={selectedPlan?.id ?? ""} onValueChange={setSelectedPlanId}>
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Select plan" />
                 </SelectTrigger>
                 <SelectContent>
                   {plans.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.label}
-                    </SelectItem>
+                    <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -225,152 +257,204 @@ function SvsPlanningPage() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">{selectedPlan.label}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border border-border overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {([
-                        ["name", "Member", "w-48"],
-                        ["power", "Power (M)", "w-28"],
-                        ["pollResponse", "Poll Response", "w-32"],
-                        ["team", "Team", "w-40"],
-                        ["role", "Role", "w-40"],
-                      ] as [SortKey, string, string][]).map(([key, label, width]) => (
-                        <TableHead
-                          key={key}
-                          className={`${width} cursor-pointer select-none hover:text-foreground transition-colors`}
-                          onClick={() => toggleSort(key)}
-                        >
-                          <span className="inline-flex items-center gap-1">
-                            {label}
-                            {sortKey === key ? (
-                              sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                            ) : (
-                              <ArrowUpDown className="h-3 w-3 opacity-30" />
-                            )}
-                          </span>
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedEntries.map((entry) => (
-                      <TableRow key={entry.memberId}>
-                        <TableCell className="font-medium">
-                          {entry.name}
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            value={entry.power || ""}
-                            placeholder="—"
-                            onChange={(e) =>
-                              handlePowerChange(
-                                entry.memberId,
-                                parseFloat(e.target.value) || 0
-                              )
-                            }
-                            className="w-24 h-8"
-                            step="0.1"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={entry.pollResponse || "none"}
-                            onValueChange={(v) =>
-                              handlePollChange(
-                                entry.memberId,
-                                v === "none" ? "" : (v as PollResponse)
-                              )
-                            }
+          <>
+            {/* Plan metadata */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex flex-wrap items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground font-medium">Mode:</span>
+                    <Select
+                      value={selectedPlan.mode || "none"}
+                      onValueChange={(v) => updatePlan(selectedPlan.id, { mode: v === "none" ? "" : v as SvsMode })}
+                    >
+                      <SelectTrigger className="w-40 h-8">
+                        <SelectValue placeholder="Select mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">—</SelectItem>
+                        <SelectItem value="invading">
+                          <span className="inline-flex items-center gap-1.5"><Target className="h-3.5 w-3.5" /> Invading</span>
+                        </SelectItem>
+                        <SelectItem value="defending">
+                          <span className="inline-flex items-center gap-1.5"><Shield className="h-3.5 w-3.5" /> Defending</span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground font-medium">Opponent Server:</span>
+                    <Input
+                      value={selectedPlan.opponentServer}
+                      onChange={(e) => updatePlan(selectedPlan.id, { opponentServer: e.target.value })}
+                      placeholder="e.g. S42"
+                      className="w-32 h-8"
+                    />
+                  </div>
+                  {selectedPlan.mode && (
+                    <Badge variant="outline" className={selectedPlan.mode === "invading" ? "border-destructive text-destructive" : "border-primary text-primary"}>
+                      {selectedPlan.mode === "invading" ? "⚔ Invading" : "🛡 Defending"}
+                      {selectedPlan.opponentServer ? ` vs ${selectedPlan.opponentServer}` : ""}
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Team summary */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {ALL_TEAMS.map((t) => {
+                const s = teamSummary[t];
+                if (!s) return null;
+                return (
+                  <Card key={t} className="p-4">
+                    <h3 className="font-heading text-sm font-semibold text-gold mb-2">{TEAM_LABELS[t]}</h3>
+                    <p className="text-2xl font-bold text-foreground">{s.total}</p>
+                    <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                      <p>{s.fighters} Fighter{s.fighters !== 1 ? "s" : ""}</p>
+                      <p>{s.commanders} Commander{s.commanders !== 1 ? "s" : ""}</p>
+                      <p>{s.deputies} Deput{s.deputies !== 1 ? "ies" : "y"}</p>
+                      <p>{s.intel} Intel Officer{s.intel !== 1 ? "s" : ""}</p>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Roster table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">{selectedPlan.label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border border-border overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {SORT_COLUMNS.map(([key, label, width]) => (
+                          <TableHead
+                            key={key}
+                            className={`${width} cursor-pointer select-none hover:text-foreground transition-colors`}
+                            onClick={() => toggleSort(key)}
                           >
-                            <SelectTrigger
-                              className={`w-28 h-8 ${
-                                entry.pollResponse === "yes"
-                                  ? "border-green-500 text-green-400"
-                                  : entry.pollResponse === "no"
-                                    ? "border-red-500 text-red-400"
-                                    : ""
-                              }`}
-                            >
-                              <SelectValue placeholder="—" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">—</SelectItem>
-                              <SelectItem value="yes">
-                                <span className="text-green-400 font-medium">Yes</span>
-                              </SelectItem>
-                              <SelectItem value="no">
-                                <span className="text-red-400 font-medium">No</span>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={entry.team}
-                            onValueChange={(v) =>
-                              handleTeamChange(entry.memberId, v as SvsTeam)
-                            }
-                            disabled={entry.pollResponse === "no"}
-                          >
-                            <SelectTrigger className="w-36 h-8">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(
-                                Object.entries(TEAM_LABELS) as [SvsTeam, string][]
-                              ).map(([key, label]) => (
-                                <SelectItem key={key} value={key}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={entry.role}
-                            onValueChange={(v) =>
-                              handleRoleChange(entry.memberId, v as SvsRole)
-                            }
-                            disabled={entry.pollResponse === "no"}
-                          >
-                            <SelectTrigger className="w-36 h-8">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(
-                                Object.entries(ROLE_LABELS) as [SvsRole, string][]
-                              ).map(([key, label]) => (
-                                <SelectItem key={key} value={key}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
+                            <span className="inline-flex items-center gap-1">
+                              {label}
+                              {sortKey === key ? (
+                                sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                              ) : (
+                                <ArrowUpDown className="h-3 w-3 opacity-30" />
+                              )}
+                            </span>
+                          </TableHead>
+                        ))}
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedEntries.map((entry) => (
+                        <TableRow key={entry.memberId}>
+                          <TableCell className="font-medium">{entry.name}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              value={entry.power || ""}
+                              placeholder="—"
+                              onChange={(e) => handlePowerChange(entry.memberId, parseFloat(e.target.value) || 0)}
+                              className="w-20 h-8"
+                              step="0.1"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={entry.pollResponse || "none"}
+                              onValueChange={(v) => handlePollChange(entry.memberId, v === "none" ? "" : v as PollResponse)}
+                            >
+                              <SelectTrigger
+                                className={`w-24 h-8 ${
+                                  entry.pollResponse === "yes"
+                                    ? "border-green-500 text-green-400"
+                                    : entry.pollResponse === "no"
+                                      ? "border-red-500 text-red-400"
+                                      : ""
+                                }`}
+                              >
+                                <SelectValue placeholder="—" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">—</SelectItem>
+                                <SelectItem value="yes">
+                                  <span className="text-green-400 font-medium">Yes</span>
+                                </SelectItem>
+                                <SelectItem value="no">
+                                  <span className="text-red-400 font-medium">No</span>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={entry.team}
+                              onValueChange={(v) => handleTeamChange(entry.memberId, v as SvsTeam)}
+                              disabled={entry.pollResponse === "no"}
+                            >
+                              <SelectTrigger className="w-32 h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(Object.entries(TEAM_LABELS) as [SvsTeam, string][]).map(([key, label]) => (
+                                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={entry.role}
+                              onValueChange={(v) => handleRoleChange(entry.memberId, v as SvsRole)}
+                              disabled={entry.pollResponse === "no"}
+                            >
+                              <SelectTrigger className="w-32 h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(Object.entries(ROLE_LABELS) as [SvsRole, string][]).map(([key, label]) => (
+                                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                value={entry.locationX || ""}
+                                placeholder="X"
+                                onChange={(e) => handleLocationChange(entry.memberId, "locationX", parseInt(e.target.value) || 0)}
+                                className="w-16 h-8"
+                              />
+                              <Input
+                                type="number"
+                                value={entry.locationY || ""}
+                                placeholder="Y"
+                                onChange={(e) => handleLocationChange(entry.memberId, "locationY", parseInt(e.target.value) || 0)}
+                                className="w-16 h-8"
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
 
       {/* Role conflict dialog */}
       <AlertDialog
         open={conflictDialog?.open ?? false}
-        onOpenChange={(open) => {
-          if (!open) setConflictDialog(null);
-        }}
+        onOpenChange={(open) => { if (!open) setConflictDialog(null); }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -382,9 +466,7 @@ function SvsPlanningPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConflictConfirm}>
-              Confirm
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConflictConfirm}>Confirm</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

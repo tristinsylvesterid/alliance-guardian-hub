@@ -4,6 +4,7 @@ import type { Member } from "@/lib/mock-data";
 export type PollResponse = "yes" | "no" | "";
 export type SvsTeam = "team1" | "team2" | "team3" | "team4" | "fighting_elsewhere";
 export type SvsRole = "fighter" | "deputy" | "commander" | "intel_officer";
+export type SvsMode = "invading" | "defending" | "";
 
 export interface SvsMemberEntry {
   memberId: string;
@@ -12,12 +13,16 @@ export interface SvsMemberEntry {
   pollResponse: PollResponse;
   team: SvsTeam;
   role: SvsRole;
+  locationX: number;
+  locationY: number;
 }
 
 export interface SvsPlan {
   id: string;
   label: string;
   createdAt: string;
+  mode: SvsMode;
+  opponentServer: string;
   entries: SvsMemberEntry[];
 }
 
@@ -58,6 +63,8 @@ export function useSvsPlans() {
       id: `svs-${Date.now()}`,
       label: now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
       createdAt: now.toISOString(),
+      mode: "",
+      opponentServer: "",
       entries: members.map((m) => ({
         memberId: m.id,
         name: m.name,
@@ -65,6 +72,8 @@ export function useSvsPlans() {
         pollResponse: "" as PollResponse,
         team: "team1" as SvsTeam,
         role: "fighter" as SvsRole,
+        locationX: typeof m.metrics.locationX === "number" ? m.metrics.locationX : 0,
+        locationY: typeof m.metrics.locationY === "number" ? m.metrics.locationY : 0,
       })),
     };
     globalPlans = [plan, ...globalPlans];
@@ -85,6 +94,13 @@ export function useSvsPlans() {
     notify();
   }
 
+  function updatePlan(planId: string, updates: Partial<Pick<SvsPlan, "mode" | "opponentServer">>) {
+    globalPlans = globalPlans.map((p) =>
+      p.id === planId ? { ...p, ...updates } : p
+    );
+    notify();
+  }
+
   function deletePlan(planId: string) {
     globalPlans = globalPlans.filter((p) => p.id !== planId);
     notify();
@@ -94,6 +110,7 @@ export function useSvsPlans() {
     plans: globalPlans,
     createPlan,
     updateEntry,
+    updatePlan,
     deletePlan,
   };
 }
