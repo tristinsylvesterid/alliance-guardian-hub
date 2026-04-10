@@ -165,7 +165,8 @@ function SvsPlanningPage() {
     if (!selectedPlan) return;
     const entry = selectedPlan.entries.find((e) => e.memberId === memberId);
     if (!entry) return;
-    const role = OFFICER_ROLES.includes(entry.role) ? "fighter" : entry.role;
+    // Reset role when changing team; fighting_elsewhere has no roles
+    const role = newTeam === "fighting_elsewhere" ? "fighter" : (OFFICER_ROLES.includes(entry.role) ? "fighter" : entry.role);
     updateEntry(selectedPlan.id, memberId, { team: newTeam, role });
   }
 
@@ -310,12 +311,14 @@ function SvsPlanningPage() {
                   <Card key={t} className="p-4">
                     <h3 className="font-heading text-sm font-semibold text-gold mb-2">{TEAM_LABELS[t]}</h3>
                     <p className="text-2xl font-bold text-foreground">{s.total}</p>
-                    <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-                      <p>{s.fighters} Fighter{s.fighters !== 1 ? "s" : ""}</p>
-                      <p>{s.commanders} Commander{s.commanders !== 1 ? "s" : ""}</p>
-                      <p>{s.deputies} Deput{s.deputies !== 1 ? "ies" : "y"}</p>
-                      <p>{s.intel} Intel Officer{s.intel !== 1 ? "s" : ""}</p>
-                    </div>
+                    {t !== "fighting_elsewhere" && (
+                      <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                        <p>{s.fighters} Fighter{s.fighters !== 1 ? "s" : ""}</p>
+                        <p>{s.commanders} Commander{s.commanders !== 1 ? "s" : ""}</p>
+                        <p>{s.deputies} Deput{s.deputies !== 1 ? "ies" : "y"}</p>
+                        <p>{s.intel} Intel Officer{s.intel !== 1 ? "s" : ""}</p>
+                      </div>
+                    )}
                   </Card>
                 );
               })}
@@ -410,10 +413,10 @@ function SvsPlanningPage() {
                             <Select
                               value={entry.role}
                               onValueChange={(v) => handleRoleChange(entry.memberId, v as SvsRole)}
-                              disabled={entry.pollResponse === "no"}
+                              disabled={entry.pollResponse === "no" || entry.team === "fighting_elsewhere"}
                             >
-                              <SelectTrigger className="w-32 h-8">
-                                <SelectValue />
+                              <SelectTrigger className={`w-32 h-8 ${entry.team === "fighting_elsewhere" ? "opacity-40" : ""}`}>
+                                <SelectValue>{entry.team === "fighting_elsewhere" ? "—" : ROLE_LABELS[entry.role]}</SelectValue>
                               </SelectTrigger>
                               <SelectContent>
                                 {(Object.entries(ROLE_LABELS) as [SvsRole, string][]).map(([key, label]) => (
