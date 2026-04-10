@@ -6,6 +6,7 @@ export type SvsTeam = "team1" | "team2" | "team3" | "team4" | "fighting_elsewher
 export type SvsRole = "fighter" | "deputy" | "commander" | "intel_officer";
 export type SvsMode = "invading" | "defending" | "";
 export type SvsResult = "win" | "lose" | "";
+export type SvsWeek = "1" | "2" | "";
 
 export interface SvsMemberEntry {
   memberId: string;
@@ -24,6 +25,7 @@ export interface SvsPlan {
   createdAt: string;
   mode: SvsMode;
   opponentServer: string;
+  svsWeek: SvsWeek;
   result: SvsResult;
   capitalPercentage: number;
   notes: string;
