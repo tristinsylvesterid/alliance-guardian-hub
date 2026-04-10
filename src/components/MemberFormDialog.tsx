@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Archive } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ interface MemberFormDialogProps {
   onOpenChange: (open: boolean) => void;
   member?: Member | null;
   onSave: (member: Member) => void;
+  onArchive?: (member: Member) => void;
 }
 
 function getDefaultMetrics(): Record<string, number | boolean | string> {
@@ -37,7 +39,7 @@ function getDefaultMetrics(): Record<string, number | boolean | string> {
   return m;
 }
 
-export function MemberFormDialog({ open, onOpenChange, member, onSave }: MemberFormDialogProps) {
+export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive }: MemberFormDialogProps) {
   const isEdit = !!member;
   const [name, setName] = useState("");
   const [leadershipRank, setLeadershipRank] = useState<"" | "R4" | "R5">("");
@@ -161,13 +163,30 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave }: MemberF
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={!name.trim()}>
-            {isEdit ? "Save Changes" : "Add Member"}
-          </Button>
+        <DialogFooter className="flex justify-between sm:justify-between">
+          <div>
+            {isEdit && onArchive && (
+              <Button
+                variant="outline"
+                className="gap-2 border-destructive/50 text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  onOpenChange(false);
+                  onArchive(member!);
+                }}
+              >
+                <Archive className="h-4 w-4" />
+                Archive
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={!name.trim()}>
+              {isEdit ? "Save Changes" : "Add Member"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
