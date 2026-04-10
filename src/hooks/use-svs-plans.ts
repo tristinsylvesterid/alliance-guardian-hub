@@ -71,6 +71,7 @@ export function useSvsPlans() {
       createdAt: now.toISOString(),
       mode: "",
       opponentServer: "",
+      svsWeek: "",
       result: "",
       capitalPercentage: 0,
       notes: "",
@@ -103,7 +104,7 @@ export function useSvsPlans() {
     notify();
   }
 
-  function updatePlan(planId: string, updates: Partial<Pick<SvsPlan, "mode" | "opponentServer" | "result" | "capitalPercentage" | "notes">>) {
+  function updatePlan(planId: string, updates: Partial<Pick<SvsPlan, "mode" | "opponentServer" | "svsWeek" | "result" | "capitalPercentage" | "notes">>) {
     globalPlans = globalPlans.map((p) =>
       p.id === planId ? { ...p, ...updates } : p
     );
