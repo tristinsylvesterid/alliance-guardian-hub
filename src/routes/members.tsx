@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { RankBadge } from "@/components/RankBadge";
 import { MemberFormDialog } from "@/components/MemberFormDialog";
+import { ArchiveConfirmDialog } from "@/components/ArchiveConfirmDialog";
 import { MOCK_MEMBERS, type Member } from "@/lib/mock-data";
 import { calculateTotalScore, getRank, METRIC_DEFINITIONS } from "@/lib/scoring";
+import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { Search, Plus, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/members")({
@@ -26,6 +28,8 @@ function MembersPage() {
   const [members, setMembers] = useState<Member[]>(() => [...MOCK_MEMBERS]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<Member | null>(null);
+  const { archiveMember } = useArchivedMembers();
 
   const membersWithScores = members.map((m) => {
     const score = calculateTotalScore(m.metrics);
@@ -56,6 +60,21 @@ function MembersPage() {
       return [...prev, saved];
     });
     setEditingMember(null);
+  }
+
+  function handleArchiveRequest(member: Member) {
+    setArchiveTarget(member);
+  }
+
+  function handleArchiveConfirm(reason: string) {
+    if (!archiveTarget) return;
+    archiveMember({
+      member: archiveTarget,
+      archivedAt: new Date().toISOString(),
+      reason,
+    });
+    setMembers((prev) => prev.filter((m) => m.id !== archiveTarget.id));
+    setArchiveTarget(null);
   }
 
   function openAdd() {
@@ -145,6 +164,14 @@ function MembersPage() {
         onOpenChange={setDialogOpen}
         member={editingMember}
         onSave={handleSave}
+        onArchive={handleArchiveRequest}
+      />
+
+      <ArchiveConfirmDialog
+        open={!!archiveTarget}
+        onOpenChange={(v) => { if (!v) setArchiveTarget(null); }}
+        memberName={archiveTarget?.name || ""}
+        onConfirm={handleArchiveConfirm}
       />
     </AppLayout>
   );
