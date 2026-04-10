@@ -311,12 +311,14 @@ function SvsPlanningPage() {
                   <Card key={t} className="p-4">
                     <h3 className="font-heading text-sm font-semibold text-gold mb-2">{TEAM_LABELS[t]}</h3>
                     <p className="text-2xl font-bold text-foreground">{s.total}</p>
-                    <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-                      <p>{s.fighters} Fighter{s.fighters !== 1 ? "s" : ""}</p>
-                      <p>{s.commanders} Commander{s.commanders !== 1 ? "s" : ""}</p>
-                      <p>{s.deputies} Deput{s.deputies !== 1 ? "ies" : "y"}</p>
-                      <p>{s.intel} Intel Officer{s.intel !== 1 ? "s" : ""}</p>
-                    </div>
+                    {t !== "fighting_elsewhere" && (
+                      <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                        <p>{s.fighters} Fighter{s.fighters !== 1 ? "s" : ""}</p>
+                        <p>{s.commanders} Commander{s.commanders !== 1 ? "s" : ""}</p>
+                        <p>{s.deputies} Deput{s.deputies !== 1 ? "ies" : "y"}</p>
+                        <p>{s.intel} Intel Officer{s.intel !== 1 ? "s" : ""}</p>
+                      </div>
+                    )}
                   </Card>
                 );
               })}
