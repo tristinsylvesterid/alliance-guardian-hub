@@ -44,16 +44,22 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
   const [name, setName] = useState("");
   const [leadershipRank, setLeadershipRank] = useState<"" | "R4" | "R5">("");
   const [metrics, setMetrics] = useState<Record<string, number | boolean | string>>(getDefaultMetrics());
+  const [locationX, setLocationX] = useState(0);
+  const [locationY, setLocationY] = useState(0);
 
   useEffect(() => {
     if (member) {
       setName(member.name);
       setLeadershipRank(member.leadershipRank || "");
       setMetrics({ ...getDefaultMetrics(), ...member.metrics });
+      setLocationX(member.locationX ?? 0);
+      setLocationY(member.locationY ?? 0);
     } else {
       setName("");
       setLeadershipRank("");
       setMetrics(getDefaultMetrics());
+      setLocationX(0);
+      setLocationY(0);
     }
   }, [member, open]);
 
@@ -64,11 +70,13 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
   function handleSave() {
     if (!name.trim()) return;
     const saved: Member = {
-      id: member?.id || `member-${Date.now()}`,
+      id: member?.id || crypto.randomUUID(),
       name: name.trim(),
       leadershipRank: leadershipRank || undefined,
       metrics,
-      events: member?.events || { ava: false, svs: false, canyonClash: false },
+      locationX,
+      locationY,
+      events: member?.events || {},
     };
     onSave(saved);
     onOpenChange(false);
@@ -170,18 +178,18 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
                 <Label className="text-xs text-muted-foreground">X Coordinate</Label>
                 <Input
                   type="number"
-                  value={metrics.locationX ? String(metrics.locationX) : ""}
+                  value={locationX || ""}
                   placeholder="X"
-                  onChange={(e) => setMetric("locationX", parseInt(e.target.value) || 0)}
+                  onChange={(e) => setLocationX(parseInt(e.target.value) || 0)}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Y Coordinate</Label>
                 <Input
                   type="number"
-                  value={metrics.locationY ? String(metrics.locationY) : ""}
+                  value={locationY || ""}
                   placeholder="Y"
-                  onChange={(e) => setMetric("locationY", parseInt(e.target.value) || 0)}
+                  onChange={(e) => setLocationY(parseInt(e.target.value) || 0)}
                 />
               </div>
             </div>

@@ -1,18 +1,20 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type EventStatus = "check" | "x" | "na";
 
 export interface WeeklyEventData {
-  weekId: string; // ISO week start date (Monday), e.g. "2026-04-06"
+  id: string;
+  weekId: string;
   label: string;
   svsActive: boolean;
-  attendance: Record<string, Record<string, EventStatus>>; // memberId -> eventKey -> status
+  isArchived: boolean;
 }
 
 function getWeekStart(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff);
   d.setHours(0, 0, 0, 0);
   return d;
@@ -24,105 +26,132 @@ function formatWeekId(date: Date): string {
 
 function formatWeekLabel(start: Date): string {
   const end = new Date(start);
-  end.setDate(end.getDate() + 6); // Sunday
+  end.setDate(end.getDate() + 6);
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
   return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", opts)}, ${end.getFullYear()}`;
 }
 
-function generatePastWeeks(count: number): WeeklyEventData[] {
-  const weeks: WeeklyEventData[] = [];
-  const now = new Date();
-  for (let i = 0; i < count; i++) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i * 7);
-    const start = getWeekStart(d);
-    const weekId = formatWeekId(start);
-    weeks.push({
-      weekId,
-      label: formatWeekLabel(start),
-      svsActive: i === 0 ? true : Math.random() > 0.3,
-      attendance: {},
-    });
-  }
-  return weeks;
-}
-
 const MAX_ACTIVE_WEEKS = 4;
-const initialWeeks = generatePastWeeks(8);
-
-let globalActiveWeeks: WeeklyEventData[] = initialWeeks.slice(0, MAX_ACTIVE_WEEKS);
-let globalArchivedWeeks: WeeklyEventData[] = initialWeeks.slice(MAX_ACTIVE_WEEKS);
-let listeners: Set<() => void> = new Set();
-
-function notify() {
-  listeners.forEach((l) => l());
-}
 
 export function useWeeklyEvents() {
-  const [, setTick] = useState(0);
-  const rerender = useCallback(() => setTick((t) => t + 1), []);
+  const [activeWeeks, setActiveWeeks] = useState<WeeklyEventData[]>([]);
+  const [archivedWeeks, setArchivedWeeks] = useState<WeeklyEventData[]>([]);
+  const [attendanceCache, setAttendanceCache] = useState<Record<string, Record<string, Record<string, EventStatus>>>>({});
+
+  const fetchWeeks = useCallback(async () => {
+    const { data: active } = await supabase
+      .from("weekly_events")
+      .select("*")
+      .eq("is_archived", false)
+      .order("week_id", { ascending: false });
+    if (active) {
+      setActiveWeeks(active.map((r) => ({
+        id: r.id,
+        weekId: r.week_id,
+        label: r.label,
+        svsActive: r.svs_active,
+        isArchived: r.is_archived,
+      })));
+    }
+
+    const { data: archived } = await supabase
+      .from("weekly_events")
+      .select("*")
+      .eq("is_archived", true)
+      .order("week_id", { ascending: false });
+    if (archived) {
+      setArchivedWeeks(archived.map((r) => ({
+        id: r.id,
+        weekId: r.week_id,
+        label: r.label,
+        svsActive: r.svs_active,
+        isArchived: r.is_archived,
+      })));
+    }
+  }, []);
+
+  const fetchAttendance = useCallback(async () => {
+    const { data } = await supabase.from("event_attendance").select("*");
+    if (data) {
+      const cache: Record<string, Record<string, Record<string, EventStatus>>> = {};
+      for (const row of data) {
+        if (!cache[row.weekly_event_id]) cache[row.weekly_event_id] = {};
+        if (!cache[row.weekly_event_id][row.member_id]) cache[row.weekly_event_id][row.member_id] = {};
+        cache[row.weekly_event_id][row.member_id][row.event_type_key] = row.status as EventStatus;
+      }
+      setAttendanceCache(cache);
+    }
+  }, []);
 
   useEffect(() => {
-    listeners.add(rerender);
-    return () => { listeners.delete(rerender); };
-  }, [rerender]);
+    fetchWeeks();
+    fetchAttendance();
+  }, [fetchWeeks, fetchAttendance]);
+
+  function getWeekDbId(weekId: string): string | undefined {
+    const all = [...activeWeeks, ...archivedWeeks];
+    return all.find((w) => w.weekId === weekId)?.id;
+  }
 
   function getStatus(weekId: string, memberId: string, eventKey: string): EventStatus {
-    const allWeeks = [...globalActiveWeeks, ...globalArchivedWeeks];
-    const week = allWeeks.find((w) => w.weekId === weekId);
+    const all = [...activeWeeks, ...archivedWeeks];
+    const week = all.find((w) => w.weekId === weekId);
     if (!week) return "x";
     if (eventKey === "svs" && !week.svsActive) return "na";
-    return week.attendance[memberId]?.[eventKey] ?? "x";
+    return attendanceCache[week.id]?.[memberId]?.[eventKey] ?? "x";
   }
 
-  function setStatus(weekId: string, memberId: string, eventKey: string, status: EventStatus) {
-    globalActiveWeeks = globalActiveWeeks.map((w) => {
-      if (w.weekId !== weekId) return w;
-      const memberAtt = { ...w.attendance[memberId], [eventKey]: status };
-      return { ...w, attendance: { ...w.attendance, [memberId]: memberAtt } };
-    });
-    notify();
+  async function setStatus(weekId: string, memberId: string, eventKey: string, status: EventStatus) {
+    const dbId = getWeekDbId(weekId);
+    if (!dbId) return;
+    await supabase.from("event_attendance").upsert(
+      { weekly_event_id: dbId, member_id: memberId, event_type_key: eventKey, status },
+      { onConflict: "weekly_event_id,member_id,event_type_key" }
+    );
+    await fetchAttendance();
   }
 
-  function toggleSvs(weekId: string, active: boolean) {
-    globalActiveWeeks = globalActiveWeeks.map((w) => {
-      if (w.weekId !== weekId) return w;
-      return { ...w, svsActive: active };
-    });
-    notify();
+  async function toggleSvs(weekId: string, active: boolean) {
+    const dbId = getWeekDbId(weekId);
+    if (!dbId) return;
+    await supabase.from("weekly_events").update({ svs_active: active }).eq("id", dbId);
+    await fetchWeeks();
   }
 
-  function startNewWeek() {
-    // Current newest week becomes index 0; push oldest active to archive
-    const currentNewest = globalActiveWeeks[0];
-    if (!currentNewest) return;
-
-    const newestStart = new Date(currentNewest.weekId + "T00:00:00");
-    const nextStart = new Date(newestStart);
-    nextStart.setDate(nextStart.getDate() + 7);
-
-    const newWeek: WeeklyEventData = {
-      weekId: formatWeekId(nextStart),
-      label: formatWeekLabel(nextStart),
-      svsActive: true,
-      attendance: {},
-    };
-
-    // Move the oldest active week to archive
-    if (globalActiveWeeks.length >= MAX_ACTIVE_WEEKS) {
-      const oldest = globalActiveWeeks[globalActiveWeeks.length - 1];
-      globalArchivedWeeks = [oldest, ...globalArchivedWeeks];
-      globalActiveWeeks = [newWeek, ...globalActiveWeeks.slice(0, MAX_ACTIVE_WEEKS - 1)];
+  async function startNewWeek() {
+    const currentNewest = activeWeeks[0];
+    let nextStart: Date;
+    if (currentNewest) {
+      const newestStart = new Date(currentNewest.weekId + "T00:00:00");
+      nextStart = new Date(newestStart);
+      nextStart.setDate(nextStart.getDate() + 7);
     } else {
-      globalActiveWeeks = [newWeek, ...globalActiveWeeks];
+      nextStart = getWeekStart(new Date());
     }
-    notify();
+
+    const newWeekId = formatWeekId(nextStart);
+    const label = formatWeekLabel(nextStart);
+
+    await supabase.from("weekly_events").insert({
+      week_id: newWeekId,
+      label,
+      svs_active: true,
+      is_archived: false,
+    });
+
+    // Archive oldest active if too many
+    if (activeWeeks.length >= MAX_ACTIVE_WEEKS) {
+      const oldest = activeWeeks[activeWeeks.length - 1];
+      await supabase.from("weekly_events").update({ is_archived: true }).eq("id", oldest.id);
+    }
+
+    await fetchWeeks();
   }
 
   return {
-    activeWeeks: globalActiveWeeks,
-    archivedWeeks: globalArchivedWeeks,
-    currentWeek: globalActiveWeeks[0] ?? null,
+    activeWeeks,
+    archivedWeeks,
+    currentWeek: activeWeeks[0] ?? null,
     getStatus,
     setStatus,
     toggleSvs,

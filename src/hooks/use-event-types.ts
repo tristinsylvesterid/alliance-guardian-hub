@@ -1,52 +1,48 @@
-import { useState, useCallback, useEffect } from "react";
-import { EVENT_TYPES as INITIAL_EVENT_TYPES } from "@/lib/mock-data";
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface EventType {
   key: string;
   name: string;
-  hasSvsToggle?: boolean; // only "svs" has the toggle behavior
-}
-
-let globalEventTypes: EventType[] = INITIAL_EVENT_TYPES.map((e) => ({
-  ...e,
-  hasSvsToggle: e.key === "svs",
-}));
-let listeners: Set<() => void> = new Set();
-
-function notify() {
-  listeners.forEach((l) => l());
+  hasSvsToggle?: boolean;
 }
 
 export function useEventTypes() {
-  const [, setTick] = useState(0);
-  const rerender = useCallback(() => setTick((t) => t + 1), []);
+  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
+
+  const fetchEventTypes = useCallback(async () => {
+    const { data } = await supabase.from("event_types").select("*").order("created_at");
+    if (data) {
+      setEventTypes(data.map((r) => ({
+        key: r.key,
+        name: r.name,
+        hasSvsToggle: r.has_svs_toggle,
+      })));
+    }
+  }, []);
 
   useEffect(() => {
-    listeners.add(rerender);
-    return () => { listeners.delete(rerender); };
-  }, [rerender]);
+    fetchEventTypes();
+  }, [fetchEventTypes]);
 
-  function addEventType(name: string) {
+  async function addEventType(name: string) {
     const key = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/(^_|_$)/g, "");
-    if (globalEventTypes.some((e) => e.key === key)) return;
-    globalEventTypes = [...globalEventTypes, { key, name, hasSvsToggle: false }];
-    notify();
+    await supabase.from("event_types").insert({ key, name, has_svs_toggle: false });
+    await fetchEventTypes();
   }
 
-  function removeEventType(key: string) {
-    globalEventTypes = globalEventTypes.filter((e) => e.key !== key);
-    notify();
+  async function removeEventType(key: string) {
+    await supabase.from("event_types").delete().eq("key", key);
+    await fetchEventTypes();
   }
 
-  function renameEventType(key: string, newName: string) {
-    globalEventTypes = globalEventTypes.map((e) =>
-      e.key === key ? { ...e, name: newName } : e
-    );
-    notify();
+  async function renameEventType(key: string, newName: string) {
+    await supabase.from("event_types").update({ name: newName }).eq("key", key);
+    await fetchEventTypes();
   }
 
   return {
-    eventTypes: globalEventTypes,
+    eventTypes,
     addEventType,
     removeEventType,
     renameEventType,

@@ -31,7 +31,7 @@ function StatusIcon({ status }: { status: EventStatus }) {
 }
 
 function EventsPage() {
-  const { members: rawMembers, setMembers } = useMembers();
+  const { members: rawMembers, updateMemberMetrics } = useMembers();
   const { eventTypes } = useEventTypes();
   const { activeWeeks, getStatus, setStatus, toggleSvs, startNewWeek } = useWeeklyEvents();
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
@@ -45,17 +45,17 @@ function EventsPage() {
     return { ...m, score, rank };
   });
 
-  function handleStatusChange(memberId: string, eventKey: string, newStatus: EventStatus) {
-    setStatus(selectedWeekId, memberId, eventKey, newStatus);
+  async function handleStatusChange(memberId: string, eventKey: string, newStatus: EventStatus) {
+    await setStatus(selectedWeekId, memberId, eventKey, newStatus);
 
     if (eventKey === "svs") {
-      setMembers((prev) =>
-        prev.map((m) =>
-          m.id === memberId
-            ? { ...m, metrics: { ...m.metrics, svsParticipation: newStatus === "check" } }
-            : m
-        )
-      );
+      const member = rawMembers.find((m) => m.id === memberId);
+      if (member) {
+        await updateMemberMetrics(memberId, {
+          ...member.metrics,
+          svsParticipation: newStatus === "check",
+        });
+      }
     }
   }
 
@@ -65,9 +65,6 @@ function EventsPage() {
 
   function handleStartNewWeek() {
     startNewWeek();
-    setTimeout(() => {
-      setSelectedWeekId(activeWeeks[0]?.weekId ?? "");
-    }, 0);
   }
 
   if (!activeWeeks.find((w) => w.weekId === selectedWeekId) && activeWeeks[0]) {

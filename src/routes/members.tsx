@@ -26,7 +26,7 @@ export const Route = createFileRoute("/members")({
 
 function MembersPage() {
   const [search, setSearch] = useState("");
-  const { members, setMembers } = useMembers();
+  const { members, saveMember, deleteMember } = useMembers();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Member | null>(null);
@@ -50,16 +50,8 @@ function MembersPage() {
     return String(val);
   }
 
-  function handleSave(saved: Member) {
-    setMembers((prev) => {
-      const idx = prev.findIndex((m) => m.id === saved.id);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = saved;
-        return updated;
-      }
-      return [...prev, saved];
-    });
+  async function handleSave(saved: Member) {
+    await saveMember(saved);
     setEditingMember(null);
   }
 
@@ -67,14 +59,10 @@ function MembersPage() {
     setArchiveTarget(member);
   }
 
-  function handleArchiveConfirm(reason: string) {
+  async function handleArchiveConfirm(reason: string) {
     if (!archiveTarget) return;
-    archiveMember({
-      member: archiveTarget,
-      archivedAt: new Date().toISOString(),
-      reason,
-    });
-    setMembers((prev) => prev.filter((m) => m.id !== archiveTarget.id));
+    await archiveMember(archiveTarget, reason);
+    await deleteMember(archiveTarget.id);
     setArchiveTarget(null);
   }
 

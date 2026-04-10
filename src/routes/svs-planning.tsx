@@ -62,7 +62,7 @@ const OFFICER_ROLES: SvsRole[] = ["deputy", "commander", "intel_officer"];
 const ALL_TEAMS: SvsTeam[] = ["team1", "team2", "team3", "team4", "fighting_elsewhere"];
 
 function SvsPlanningPage() {
-  const { members, setMembers } = useMembers();
+  const { members, updateMemberLocation } = useMembers();
   const { plans, createPlan, updateEntry, updatePlan } = useSvsPlans();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -101,7 +101,6 @@ function SvsPlanningPage() {
     return entries;
   }, [selectedPlan, sortKey, sortDir]);
 
-  // Team summary
   const teamSummary = useMemo(() => {
     if (!selectedPlan) return {};
     const summary: Record<string, { fighters: number; deputies: number; commanders: number; intel: number; total: number }> = {};
@@ -129,9 +128,9 @@ function SvsPlanningPage() {
     }
   }
 
-  function handleCreatePlan() {
-    const plan = createPlan(members);
-    setSelectedPlanId(plan.id);
+  async function handleCreatePlan() {
+    const planId = await createPlan(members);
+    setSelectedPlanId(planId);
   }
 
   function handlePowerChange(memberId: string, newPower: number) {
@@ -139,17 +138,16 @@ function SvsPlanningPage() {
     updateEntry(selectedPlan.id, memberId, { power: newPower });
   }
 
-  function handleLocationChange(memberId: string, axis: "locationX" | "locationY", value: number) {
+  async function handleLocationChange(memberId: string, axis: "locationX" | "locationY", value: number) {
     if (!selectedPlan) return;
     updateEntry(selectedPlan.id, memberId, { [axis]: value });
     // Sync back to member profile
-    setMembers((prev) =>
-      prev.map((m) =>
-        m.id === memberId
-          ? { ...m, metrics: { ...m.metrics, [axis]: value } }
-          : m
-      )
-    );
+    const entry = selectedPlan.entries.find((e) => e.memberId === memberId);
+    if (entry) {
+      const newX = axis === "locationX" ? value : entry.locationX;
+      const newY = axis === "locationY" ? value : entry.locationY;
+      await updateMemberLocation(memberId, newX, newY);
+    }
   }
 
   function handlePollChange(memberId: string, response: PollResponse) {
@@ -168,7 +166,6 @@ function SvsPlanningPage() {
     if (!selectedPlan) return;
     const entry = selectedPlan.entries.find((e) => e.memberId === memberId);
     if (!entry) return;
-    // Reset role when changing team; fighting_elsewhere has no roles
     const role = newTeam === "fighting_elsewhere" ? "fighter" : (OFFICER_ROLES.includes(entry.role) ? "fighter" : entry.role);
     updateEntry(selectedPlan.id, memberId, { team: newTeam, role });
   }
@@ -222,7 +219,6 @@ function SvsPlanningPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold text-gold flex items-center gap-3">
@@ -264,7 +260,6 @@ function SvsPlanningPage() {
           </Card>
         ) : (
           <>
-            {/* Plan metadata */}
             <Card>
               <CardContent className="pt-6 space-y-4">
                 <div className="flex flex-wrap items-center gap-6">
@@ -350,7 +345,6 @@ function SvsPlanningPage() {
                     </Badge>
                   )}
                 </div>
-                {/* Notes */}
                 <div>
                   <span className="text-sm text-muted-foreground font-medium">Notes & Insights</span>
                   <Textarea
@@ -363,7 +357,6 @@ function SvsPlanningPage() {
               </CardContent>
             </Card>
 
-            {/* Team summary */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {ALL_TEAMS.map((t) => {
                 const s = teamSummary[t];
@@ -385,7 +378,6 @@ function SvsPlanningPage() {
               })}
             </div>
 
-            {/* Roster table */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">{selectedPlan.label}</CardTitle>
@@ -521,7 +513,6 @@ function SvsPlanningPage() {
         )}
       </div>
 
-      {/* Role conflict dialog */}
       <AlertDialog
         open={conflictDialog?.open ?? false}
         onOpenChange={(open) => { if (!open) setConflictDialog(null); }}
