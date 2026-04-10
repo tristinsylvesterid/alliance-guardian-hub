@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RankBadge } from "@/components/RankBadge";
 import { EVENT_TYPES } from "@/lib/mock-data";
 import { useMembers } from "@/hooks/use-members";
+import { useWeeklyEvents } from "@/hooks/use-weekly-events";
 import { calculateTotalScore, getRank, MAX_TOTAL_POINTS, type Rank } from "@/lib/scoring";
-import { Users, Trophy, Calendar, TrendingUp } from "lucide-react";
+import { Users, Trophy, Calendar, TrendingUp, Minus } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const { members: rawMembers } = useMembers();
+  const { currentWeek, getStatus } = useWeeklyEvents();
 
   const membersWithScores = rawMembers.map((m) => {
     const score = calculateTotalScore(m.metrics);
@@ -31,11 +33,6 @@ function Dashboard() {
   membersWithScores.forEach((m) => rankCounts[m.rank]++);
 
   const avgScore = total ? Math.round(membersWithScores.reduce((s, m) => s + m.score, 0) / total) : 0;
-
-  const eventAttendance = EVENT_TYPES.map((e) => ({
-    ...e,
-    count: rawMembers.filter((m) => m.events[e.key]).length,
-  }));
 
   return (
     <AppLayout>
@@ -111,24 +108,45 @@ function Dashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="font-heading text-lg text-gold">Event Attendance</CardTitle>
+              <CardTitle className="font-heading text-lg text-gold">
+                Event Attendance
+                {currentWeek && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    {currentWeek.label}
+                  </span>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {eventAttendance.map((e) => (
-                  <div key={e.key} className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">{e.name}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-32 rounded-full bg-secondary">
-                        <div
-                          className="h-2 rounded-full bg-gold transition-all"
-                          style={{ width: `${total ? (e.count / total) * 100 : 0}%` }}
-                        />
-                      </div>
-                      <span className="text-sm text-muted-foreground">{e.count}/{total}</span>
+                {EVENT_TYPES.map((e) => {
+                  const isSvsOff = e.key === "svs" && currentWeek && !currentWeek.svsActive;
+                  const count = currentWeek
+                    ? (isSvsOff ? 0 : rawMembers.filter((m) => getStatus(currentWeek.weekId, m.id, e.key) === "check").length)
+                    : 0;
+
+                  return (
+                    <div key={e.key} className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">{e.name}</span>
+                      {isSvsOff ? (
+                        <div className="flex items-center gap-2">
+                          <Minus className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">N/A</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-32 rounded-full bg-secondary">
+                            <div
+                              className="h-2 rounded-full bg-gold transition-all"
+                              style={{ width: `${total ? (count / total) * 100 : 0}%` }}
+                            />
+                          </div>
+                          <span className="text-sm text-muted-foreground">{count}/{total}</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
