@@ -38,7 +38,10 @@ import {
   type SvsRole,
   type PollResponse,
 } from "@/hooks/use-svs-plans";
-import { Swords, Plus } from "lucide-react";
+import { Swords, Plus, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+
+type SortKey = "name" | "power" | "pollResponse" | "team" | "role";
+type SortDir = "asc" | "desc";
 
 export const Route = createFileRoute("/svs-planning")({
   component: SvsPlanningPage,
