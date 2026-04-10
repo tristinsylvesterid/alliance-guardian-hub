@@ -3,7 +3,8 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RankBadge } from "@/components/RankBadge";
 import { useMembers } from "@/hooks/use-members";
-import { calculateTotalScore, getRank, METRIC_DEFINITIONS, calculateMetricPoints, MAX_TOTAL_POINTS, type Rank } from "@/lib/scoring";
+import { useScoringConfig } from "@/hooks/use-scoring-config";
+import { calculateTotalScore, getRank, calculateMetricPoints, type Rank } from "@/lib/scoring";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/rankings")({
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/rankings")({
 
 function RankingsPage() {
   const { members } = useMembers();
+  const { metrics: METRIC_DEFINITIONS, maxTotal: MAX_TOTAL_POINTS } = useScoringConfig();
 
   const membersWithScores = members.map((m) => {
     const score = calculateTotalScore(m.metrics);
