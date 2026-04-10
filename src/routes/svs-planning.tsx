@@ -39,6 +39,7 @@ import {
   type SvsRole,
   type SvsMode,
   type SvsResult,
+  type SvsWeek,
   type PollResponse,
 } from "@/hooks/use-svs-plans";
 import { Textarea } from "@/components/ui/textarea";
@@ -295,6 +296,22 @@ function SvsPlanningPage() {
                       placeholder="e.g. S42"
                       className="w-32 h-8"
                     />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground font-medium">Week:</span>
+                    <Select
+                      value={selectedPlan.svsWeek || "none"}
+                      onValueChange={(v) => updatePlan(selectedPlan.id, { svsWeek: v === "none" ? "" : v as SvsWeek })}
+                    >
+                      <SelectTrigger className="w-28 h-8">
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">—</SelectItem>
+                        <SelectItem value="1">Week 1</SelectItem>
+                        <SelectItem value="2">Week 2</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground font-medium">Result:</span>
