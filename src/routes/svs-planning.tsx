@@ -165,7 +165,8 @@ function SvsPlanningPage() {
     if (!selectedPlan) return;
     const entry = selectedPlan.entries.find((e) => e.memberId === memberId);
     if (!entry) return;
-    const role = OFFICER_ROLES.includes(entry.role) ? "fighter" : entry.role;
+    // Reset role when changing team; fighting_elsewhere has no roles
+    const role = newTeam === "fighting_elsewhere" ? "fighter" : (OFFICER_ROLES.includes(entry.role) ? "fighter" : entry.role);
     updateEntry(selectedPlan.id, memberId, { team: newTeam, role });
   }
 
