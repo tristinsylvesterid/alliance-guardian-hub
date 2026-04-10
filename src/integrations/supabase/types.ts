@@ -14,7 +14,291 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      archived_members: {
+        Row: {
+          archived_at: string
+          id: string
+          leadership_rank: string | null
+          metrics: Json
+          name: string
+          original_member_id: string | null
+          reason: string
+        }
+        Insert: {
+          archived_at?: string
+          id?: string
+          leadership_rank?: string | null
+          metrics?: Json
+          name: string
+          original_member_id?: string | null
+          reason?: string
+        }
+        Update: {
+          archived_at?: string
+          id?: string
+          leadership_rank?: string | null
+          metrics?: Json
+          name?: string
+          original_member_id?: string | null
+          reason?: string
+        }
+        Relationships: []
+      }
+      event_attendance: {
+        Row: {
+          event_type_key: string
+          id: string
+          member_id: string
+          status: string
+          weekly_event_id: string
+        }
+        Insert: {
+          event_type_key: string
+          id?: string
+          member_id: string
+          status?: string
+          weekly_event_id: string
+        }
+        Update: {
+          event_type_key?: string
+          id?: string
+          member_id?: string
+          status?: string
+          weekly_event_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_attendance_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_attendance_weekly_event_id_fkey"
+            columns: ["weekly_event_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_types: {
+        Row: {
+          created_at: string
+          has_svs_toggle: boolean
+          id: string
+          key: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          has_svs_toggle?: boolean
+          id?: string
+          key: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          has_svs_toggle?: boolean
+          id?: string
+          key?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      members: {
+        Row: {
+          created_at: string
+          id: string
+          leadership_rank: string | null
+          location_x: number
+          location_y: number
+          metrics: Json
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          leadership_rank?: string | null
+          location_x?: number
+          location_y?: number
+          metrics?: Json
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          leadership_rank?: string | null
+          location_x?: number
+          location_y?: number
+          metrics?: Json
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      scoring_config: {
+        Row: {
+          brackets: Json
+          created_at: string
+          id: string
+          key: string
+          max_points: number
+          name: string
+          sort_order: number
+          type: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          brackets?: Json
+          created_at?: string
+          id?: string
+          key: string
+          max_points?: number
+          name: string
+          sort_order?: number
+          type: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brackets?: Json
+          created_at?: string
+          id?: string
+          key?: string
+          max_points?: number
+          name?: string
+          sort_order?: number
+          type?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      svs_plan_entries: {
+        Row: {
+          id: string
+          location_x: number
+          location_y: number
+          member_id: string
+          name: string
+          plan_id: string
+          poll_response: string
+          power: number
+          role: string
+          team: string
+        }
+        Insert: {
+          id?: string
+          location_x?: number
+          location_y?: number
+          member_id: string
+          name: string
+          plan_id: string
+          poll_response?: string
+          power?: number
+          role?: string
+          team?: string
+        }
+        Update: {
+          id?: string
+          location_x?: number
+          location_y?: number
+          member_id?: string
+          name?: string
+          plan_id?: string
+          poll_response?: string
+          power?: number
+          role?: string
+          team?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "svs_plan_entries_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "svs_plan_entries_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "svs_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      svs_plans: {
+        Row: {
+          capital_percentage: number
+          created_at: string
+          id: string
+          label: string
+          mode: string
+          notes: string
+          opponent_server: string
+          result: string
+          svs_week: string
+          updated_at: string
+        }
+        Insert: {
+          capital_percentage?: number
+          created_at?: string
+          id?: string
+          label: string
+          mode?: string
+          notes?: string
+          opponent_server?: string
+          result?: string
+          svs_week?: string
+          updated_at?: string
+        }
+        Update: {
+          capital_percentage?: number
+          created_at?: string
+          id?: string
+          label?: string
+          mode?: string
+          notes?: string
+          opponent_server?: string
+          result?: string
+          svs_week?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      weekly_events: {
+        Row: {
+          created_at: string
+          id: string
+          is_archived: boolean
+          label: string
+          svs_active: boolean
+          week_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          label: string
+          svs_active?: boolean
+          week_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          label?: string
+          svs_active?: boolean
+          week_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
