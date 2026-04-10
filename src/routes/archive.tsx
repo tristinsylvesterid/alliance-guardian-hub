@@ -52,11 +52,11 @@ function ArchivePage() {
                   </TableHeader>
                   <TableBody>
                     {archivedMembers.map((entry) => {
-                      const score = calculateTotalScore(entry.member.metrics);
-                      const rank = getRank(score, entry.member.leadershipRank);
+                      const score = calculateTotalScore(entry.metrics);
+                      const rank = getRank(score, entry.leadershipRank as "R4" | "R5" | undefined);
                       return (
-                        <TableRow key={entry.member.id} className="border-border/50">
-                          <TableCell className="font-medium text-foreground">{entry.member.name}</TableCell>
+                        <TableRow key={entry.id} className="border-border/50">
+                          <TableCell className="font-medium text-foreground">{entry.name}</TableCell>
                           <TableCell><RankBadge rank={rank} /></TableCell>
                           <TableCell className="text-center font-bold text-gold">{score}</TableCell>
                           <TableCell className="text-muted-foreground max-w-xs truncate">{entry.reason}</TableCell>
