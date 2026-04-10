@@ -39,6 +39,7 @@ import {
   type SvsRole,
   type SvsMode,
   type SvsResult,
+  type SvsWeek,
   type PollResponse,
 } from "@/hooks/use-svs-plans";
 import { Textarea } from "@/components/ui/textarea";
