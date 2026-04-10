@@ -1,74 +1,94 @@
-import { useState, useCallback, useEffect } from "react";
-import {
-  METRIC_DEFINITIONS as INITIAL_METRICS,
-  MAX_TOTAL_POINTS as computeMax,
-  type MetricDefinition,
-  type MetricBracket,
-} from "@/lib/scoring";
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { MetricDefinition, MetricBracket } from "@/lib/scoring";
+import type { Json } from "@/integrations/supabase/types";
 
-let globalMetrics: MetricDefinition[] = [...INITIAL_METRICS];
-let listeners: Set<() => void> = new Set();
+function rowToMetric(row: {
+  key: string;
+  name: string;
+  type: string;
+  unit: string | null;
+  max_points: number;
+  brackets: Json;
+  sort_order: number;
+}): MetricDefinition {
+  const brackets = Array.isArray(row.brackets) ? row.brackets.map((b: Record<string, unknown>) => ({
+    label: String(b.label ?? ""),
+    points: Number(b.points ?? 0),
+    min: b.min != null ? Number(b.min) : undefined,
+    max: b.max != null ? Number(b.max) : undefined,
+    condition: b.condition != null ? String(b.condition) : undefined,
+  })) : [];
 
-function notify() {
-  listeners.forEach((l) => l());
+  return {
+    key: row.key,
+    name: row.name,
+    type: row.type as MetricDefinition["type"],
+    unit: row.unit ?? undefined,
+    maxPoints: row.max_points,
+    brackets,
+  };
 }
 
 export function useScoringConfig() {
-  const [, setTick] = useState(0);
-  const rerender = useCallback(() => setTick((t) => t + 1), []);
+  const [metrics, setMetrics] = useState<MetricDefinition[]>([]);
+
+  const fetchMetrics = useCallback(async () => {
+    const { data } = await supabase.from("scoring_config").select("*").order("sort_order");
+    if (data) setMetrics(data.map((r) => rowToMetric(r as unknown as Parameters<typeof rowToMetric>[0])));
+  }, []);
 
   useEffect(() => {
-    listeners.add(rerender);
-    return () => { listeners.delete(rerender); };
-  }, [rerender]);
+    fetchMetrics();
+  }, [fetchMetrics]);
 
-  function updateMetric(key: string, updates: Partial<MetricDefinition>) {
-    globalMetrics = globalMetrics.map((m) =>
-      m.key === key ? { ...m, ...updates } : m
+  async function updateMetric(key: string, updates: Partial<MetricDefinition>) {
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.maxPoints !== undefined) dbUpdates.max_points = updates.maxPoints;
+    if (updates.unit !== undefined) dbUpdates.unit = updates.unit;
+    await supabase.from("scoring_config").update(dbUpdates).eq("key", key);
+    await fetchMetrics();
+  }
+
+  async function updateBracket(metricKey: string, bracketIndex: number, updates: Partial<MetricBracket>) {
+    const metric = metrics.find((m) => m.key === metricKey);
+    if (!metric) return;
+    const newBrackets = metric.brackets.map((b, i) =>
+      i === bracketIndex ? { ...b, ...updates } : b
     );
-    notify();
+    await supabase.from("scoring_config").update({ brackets: newBrackets as unknown as Json }).eq("key", metricKey);
+    await fetchMetrics();
   }
 
-  function updateBracket(metricKey: string, bracketIndex: number, updates: Partial<MetricBracket>) {
-    globalMetrics = globalMetrics.map((m) => {
-      if (m.key !== metricKey) return m;
-      const newBrackets = m.brackets.map((b, i) =>
-        i === bracketIndex ? { ...b, ...updates } : b
-      );
-      return { ...m, brackets: newBrackets };
-    });
-    notify();
+  async function addBracket(metricKey: string, bracket: MetricBracket) {
+    const metric = metrics.find((m) => m.key === metricKey);
+    if (!metric) return;
+    const newBrackets = [...metric.brackets, bracket];
+    await supabase.from("scoring_config").update({ brackets: newBrackets as unknown as Json }).eq("key", metricKey);
+    await fetchMetrics();
   }
 
-  function addBracket(metricKey: string, bracket: MetricBracket) {
-    globalMetrics = globalMetrics.map((m) => {
-      if (m.key !== metricKey) return m;
-      return { ...m, brackets: [...m.brackets, bracket] };
-    });
-    notify();
+  async function removeBracket(metricKey: string, bracketIndex: number) {
+    const metric = metrics.find((m) => m.key === metricKey);
+    if (!metric) return;
+    const newBrackets = metric.brackets.filter((_, i) => i !== bracketIndex);
+    await supabase.from("scoring_config").update({ brackets: newBrackets as unknown as Json }).eq("key", metricKey);
+    await fetchMetrics();
   }
 
-  function removeBracket(metricKey: string, bracketIndex: number) {
-    globalMetrics = globalMetrics.map((m) => {
-      if (m.key !== metricKey) return m;
-      return { ...m, brackets: m.brackets.filter((_, i) => i !== bracketIndex) };
-    });
-    notify();
+  async function recalcMaxPoints(metricKey: string) {
+    const metric = metrics.find((m) => m.key === metricKey);
+    if (!metric) return;
+    const max = Math.max(...metric.brackets.map((b) => b.points), 0);
+    await supabase.from("scoring_config").update({ max_points: max }).eq("key", metricKey);
+    await fetchMetrics();
   }
 
-  function recalcMaxPoints(metricKey: string) {
-    globalMetrics = globalMetrics.map((m) => {
-      if (m.key !== metricKey) return m;
-      const max = Math.max(...m.brackets.map((b) => b.points), 0);
-      return { ...m, maxPoints: max };
-    });
-    notify();
-  }
-
-  const maxTotal = globalMetrics.reduce((sum, m) => sum + m.maxPoints, 0);
+  const maxTotal = metrics.reduce((sum, m) => sum + m.maxPoints, 0);
 
   return {
-    metrics: globalMetrics,
+    metrics,
     maxTotal,
     updateMetric,
     updateBracket,

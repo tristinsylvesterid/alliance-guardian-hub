@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import type { Member } from "@/lib/mock-data";
 
 export type PollResponse = "yes" | "no" | "";
@@ -32,13 +33,6 @@ export interface SvsPlan {
   entries: SvsMemberEntry[];
 }
 
-let globalPlans: SvsPlan[] = [];
-let listeners: Set<() => void> = new Set();
-
-function notify() {
-  listeners.forEach((l) => l());
-}
-
 export const TEAM_LABELS: Record<SvsTeam, string> = {
   team1: "Team 1",
   team2: "Team 2",
@@ -55,69 +49,132 @@ export const ROLE_LABELS: Record<SvsRole, string> = {
 };
 
 export function useSvsPlans() {
-  const [, setTick] = useState(0);
-  const rerender = useCallback(() => setTick((t) => t + 1), []);
+  const [plans, setPlans] = useState<SvsPlan[]>([]);
+
+  const fetchPlans = useCallback(async () => {
+    const { data: planRows } = await supabase
+      .from("svs_plans")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (!planRows) return;
+
+    const { data: entryRows } = await supabase.from("svs_plan_entries").select("*");
+    const entriesByPlan: Record<string, SvsMemberEntry[]> = {};
+    if (entryRows) {
+      for (const e of entryRows) {
+        if (!entriesByPlan[e.plan_id]) entriesByPlan[e.plan_id] = [];
+        entriesByPlan[e.plan_id].push({
+          memberId: e.member_id,
+          name: e.name,
+          power: e.power,
+          pollResponse: e.poll_response as PollResponse,
+          team: e.team as SvsTeam,
+          role: e.role as SvsRole,
+          locationX: e.location_x,
+          locationY: e.location_y,
+        });
+      }
+    }
+
+    setPlans(planRows.map((p) => ({
+      id: p.id,
+      label: p.label,
+      createdAt: p.created_at,
+      mode: p.mode as SvsMode,
+      opponentServer: p.opponent_server,
+      svsWeek: p.svs_week as SvsWeek,
+      result: p.result as SvsResult,
+      capitalPercentage: p.capital_percentage,
+      notes: p.notes,
+      entries: entriesByPlan[p.id] || [],
+    })));
+  }, []);
 
   useEffect(() => {
-    listeners.add(rerender);
-    return () => { listeners.delete(rerender); };
-  }, [rerender]);
+    fetchPlans();
+  }, [fetchPlans]);
 
-  function createPlan(members: Member[]): SvsPlan {
+  async function createPlan(members: Member[]): Promise<SvsPlan> {
     const now = new Date();
-    const plan: SvsPlan = {
-      id: `svs-${Date.now()}`,
-      label: now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      createdAt: now.toISOString(),
+    const label = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+    const { data: planRow } = await supabase
+      .from("svs_plans")
+      .insert({ label })
+      .select()
+      .single();
+
+    if (!planRow) throw new Error("Failed to create plan");
+
+    const entries = members.map((m) => ({
+      plan_id: planRow.id,
+      member_id: m.id,
+      name: m.name,
+      power: 0,
+      poll_response: "" as const,
+      team: "team1" as const,
+      role: "fighter" as const,
+      location_x: m.locationX ?? 0,
+      location_y: m.locationY ?? 0,
+    }));
+
+    if (entries.length > 0) {
+      await supabase.from("svs_plan_entries").insert(entries);
+    }
+
+    await fetchPlans();
+    return plans.find((p) => p.id === planRow.id) ?? {
+      id: planRow.id,
+      label,
+      createdAt: planRow.created_at,
       mode: "",
       opponentServer: "",
       svsWeek: "",
       result: "",
       capitalPercentage: 0,
       notes: "",
-      entries: members.map((m) => ({
-        memberId: m.id,
-        name: m.name,
-        power: 0,
-        pollResponse: "" as PollResponse,
-        team: "team1" as SvsTeam,
-        role: "fighter" as SvsRole,
-        locationX: typeof m.metrics.locationX === "number" ? m.metrics.locationX : 0,
-        locationY: typeof m.metrics.locationY === "number" ? m.metrics.locationY : 0,
-      })),
+      entries: [],
     };
-    globalPlans = [plan, ...globalPlans];
-    notify();
-    return plan;
   }
 
-  function updateEntry(planId: string, memberId: string, updates: Partial<SvsMemberEntry>) {
-    globalPlans = globalPlans.map((p) => {
-      if (p.id !== planId) return p;
-      return {
-        ...p,
-        entries: p.entries.map((e) =>
-          e.memberId === memberId ? { ...e, ...updates } : e
-        ),
-      };
-    });
-    notify();
+  async function updateEntry(planId: string, memberId: string, updates: Partial<SvsMemberEntry>) {
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.power !== undefined) dbUpdates.power = updates.power;
+    if (updates.pollResponse !== undefined) dbUpdates.poll_response = updates.pollResponse;
+    if (updates.team !== undefined) dbUpdates.team = updates.team;
+    if (updates.role !== undefined) dbUpdates.role = updates.role;
+    if (updates.locationX !== undefined) dbUpdates.location_x = updates.locationX;
+    if (updates.locationY !== undefined) dbUpdates.location_y = updates.locationY;
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+
+    await supabase
+      .from("svs_plan_entries")
+      .update(dbUpdates)
+      .eq("plan_id", planId)
+      .eq("member_id", memberId);
+    await fetchPlans();
   }
 
-  function updatePlan(planId: string, updates: Partial<Pick<SvsPlan, "mode" | "opponentServer" | "svsWeek" | "result" | "capitalPercentage" | "notes">>) {
-    globalPlans = globalPlans.map((p) =>
-      p.id === planId ? { ...p, ...updates } : p
-    );
-    notify();
+  async function updatePlan(planId: string, updates: Partial<Pick<SvsPlan, "mode" | "opponentServer" | "svsWeek" | "result" | "capitalPercentage" | "notes">>) {
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.mode !== undefined) dbUpdates.mode = updates.mode;
+    if (updates.opponentServer !== undefined) dbUpdates.opponent_server = updates.opponentServer;
+    if (updates.svsWeek !== undefined) dbUpdates.svs_week = updates.svsWeek;
+    if (updates.result !== undefined) dbUpdates.result = updates.result;
+    if (updates.capitalPercentage !== undefined) dbUpdates.capital_percentage = updates.capitalPercentage;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+
+    await supabase.from("svs_plans").update(dbUpdates).eq("id", planId);
+    await fetchPlans();
   }
 
-  function deletePlan(planId: string) {
-    globalPlans = globalPlans.filter((p) => p.id !== planId);
-    notify();
+  async function deletePlan(planId: string) {
+    await supabase.from("svs_plans").delete().eq("id", planId);
+    await fetchPlans();
   }
 
   return {
-    plans: globalPlans,
+    plans,
     createPlan,
     updateEntry,
     updatePlan,

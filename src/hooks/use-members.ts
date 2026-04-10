@@ -1,29 +1,91 @@
-import { useState, useCallback, useEffect } from "react";
-import { MOCK_MEMBERS, type Member } from "@/lib/mock-data";
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Member } from "@/lib/mock-data";
+import type { Json } from "@/integrations/supabase/types";
 
-let globalMembers: Member[] = [...MOCK_MEMBERS];
-let listeners: Set<() => void> = new Set();
-
-function notify() {
-  listeners.forEach((l) => l());
+function rowToMember(row: {
+  id: string;
+  name: string;
+  leadership_rank: string | null;
+  metrics: Json;
+  location_x: number;
+  location_y: number;
+}): Member {
+  const rawMetrics = (row.metrics && typeof row.metrics === "object" && !Array.isArray(row.metrics))
+    ? row.metrics as Record<string, Json>
+    : {};
+  const metrics: Record<string, number | boolean | string> = {};
+  for (const [k, v] of Object.entries(rawMetrics)) {
+    if (typeof v === "number" || typeof v === "boolean" || typeof v === "string") {
+      metrics[k] = v;
+    }
+  }
+  return {
+    id: row.id,
+    name: row.name,
+    leadershipRank: row.leadership_rank as "R4" | "R5" | undefined,
+    metrics,
+    locationX: row.location_x,
+    locationY: row.location_y,
+    events: {},
+  };
 }
 
 export function useMembers() {
-  const [, setTick] = useState(0);
-  const rerender = useCallback(() => setTick((t) => t + 1), []);
+  const [members, setMembersState] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchMembers = useCallback(async () => {
+    const { data } = await supabase.from("members").select("*").order("name");
+    if (data) setMembersState(data.map(rowToMember));
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    listeners.add(rerender);
-    return () => { listeners.delete(rerender); };
-  }, [rerender]);
+    fetchMembers();
+    const channel = supabase
+      .channel("members-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "members" }, () => {
+        fetchMembers();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchMembers]);
 
-  function setMembers(updater: Member[] | ((prev: Member[]) => Member[])) {
-    globalMembers = typeof updater === "function" ? updater(globalMembers) : updater;
-    notify();
+  async function saveMember(member: Member) {
+    const metricsJson = member.metrics as unknown as Json;
+    const row = {
+      id: member.id,
+      name: member.name,
+      leadership_rank: member.leadershipRank || null,
+      metrics: metricsJson,
+      location_x: member.locationX ?? (typeof member.metrics.locationX === "number" ? member.metrics.locationX : 0),
+      location_y: member.locationY ?? (typeof member.metrics.locationY === "number" ? member.metrics.locationY : 0),
+    };
+    const { data } = await supabase.from("members").upsert(row).select().single();
+    if (data) {
+      await fetchMembers();
+      return rowToMember(data);
+    }
+    return member;
+  }
+
+  async function deleteMember(id: string) {
+    await supabase.from("members").delete().eq("id", id);
+    await fetchMembers();
+  }
+
+  async function updateMemberField(id: string, updates: Record<string, unknown>) {
+    await supabase.from("members").update(updates).eq("id", id);
+    await fetchMembers();
   }
 
   return {
-    members: globalMembers,
-    setMembers,
+    members,
+    loading,
+    saveMember,
+    deleteMember,
+    updateMemberField,
+    refetch: fetchMembers,
   };
 }
