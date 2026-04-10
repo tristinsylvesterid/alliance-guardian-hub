@@ -1,25 +1,41 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
 import { RankBadge } from "@/components/RankBadge";
 import { EVENT_TYPES } from "@/lib/mock-data";
 import { useMembers } from "@/hooks/use-members";
+import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
 import { calculateTotalScore, getRank } from "@/lib/scoring";
-import { Check, X } from "lucide-react";
+import { Check, X, Minus, ChevronDown } from "lucide-react";
 
 export const Route = createFileRoute("/events")({
   component: EventsPage,
   head: () => ({
     meta: [
-      { title: "Events | Last Z Alliance Manager" },
-      { name: "description", content: "Track event attendance for alliance members" },
+      { title: "Events | nOva Alliance Manager" },
+      { name: "description", content: "Track weekly event attendance for alliance members" },
     ],
   }),
 });
 
+function StatusIcon({ status }: { status: EventStatus }) {
+  if (status === "check") return <Check className="inline h-4 w-4 text-gold" />;
+  if (status === "na") return <Minus className="inline h-4 w-4 text-muted-foreground" />;
+  return <X className="inline h-4 w-4 text-destructive/60" />;
+}
+
 function EventsPage() {
-  const { members: rawMembers } = useMembers();
+  const { members: rawMembers, setMembers } = useMembers();
+  const { weeks, getStatus, setStatus, toggleSvs } = useWeeklyEvents();
+  const [selectedWeekId, setSelectedWeekId] = useState(weeks[0]?.weekId ?? "");
+
+  const selectedWeek = weeks.find((w) => w.weekId === selectedWeekId);
+  const isCurrentWeek = selectedWeekId === weeks[0]?.weekId;
 
   const members = rawMembers.map((m) => {
     const score = calculateTotalScore(m.metrics);
@@ -27,33 +43,100 @@ function EventsPage() {
     return { ...m, score, rank };
   });
 
+  function handleStatusChange(memberId: string, eventKey: string, newStatus: EventStatus) {
+    setStatus(selectedWeekId, memberId, eventKey, newStatus);
+
+    // If SvS check, update member's svsParticipation metric
+    if (eventKey === "svs") {
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === memberId
+            ? { ...m, metrics: { ...m.metrics, svsParticipation: newStatus === "check" } }
+            : m
+        )
+      );
+    }
+  }
+
+  function handleSvsToggle(active: boolean) {
+    toggleSvs(selectedWeekId, active);
+
+    // If toggling off, set all members' SvS participation to false for this context
+    if (!active) {
+      // No metric update needed when toggling off - N/A means not applicable
+    }
+  }
+
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="font-heading text-3xl font-bold tracking-wide text-gold">Events</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Track attendance across alliance events</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="font-heading text-3xl font-bold tracking-wide text-gold">Events</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Track weekly attendance across alliance events</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Select value={selectedWeekId} onValueChange={setSelectedWeekId}>
+              <SelectTrigger className="w-[260px] border-border bg-card text-foreground">
+                <SelectValue placeholder="Select week" />
+              </SelectTrigger>
+              <SelectContent>
+                {weeks.map((w) => (
+                  <SelectItem key={w.weekId} value={w.weekId}>
+                    {w.weekId === weeks[0]?.weekId ? `Current: ${w.label}` : w.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           {EVENT_TYPES.map((event) => {
-            const attending = members.filter((m) => m.events[event.key]).length;
+            const isSvsOff = event.key === "svs" && selectedWeek && !selectedWeek.svsActive;
+            const attending = isSvsOff
+              ? 0
+              : members.filter((m) => getStatus(selectedWeekId, m.id, event.key) === "check").length;
+
             return (
               <Card key={event.key}>
                 <CardHeader className="pb-2">
-                  <CardTitle className="font-heading text-gold">{event.name}</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="font-heading text-gold">{event.name}</CardTitle>
+                    {event.key === "svs" && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {selectedWeek?.svsActive ? "Active" : "Off"}
+                        </span>
+                        <Switch
+                          checked={selectedWeek?.svsActive ?? false}
+                          onCheckedChange={handleSvsToggle}
+                          disabled={!isCurrentWeek}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-end gap-1">
-                    <span className="text-3xl font-bold text-foreground">{attending}</span>
-                    <span className="pb-1 text-sm text-muted-foreground">/ {members.length} attending</span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-secondary">
-                    <div
-                      className="h-2 rounded-full bg-gold transition-all"
-                      style={{ width: `${members.length ? (attending / members.length) * 100 : 0}%` }}
-                    />
-                  </div>
+                  {isSvsOff ? (
+                    <div className="flex items-center gap-2 py-2">
+                      <Minus className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">N/A this week</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-end gap-1">
+                        <span className="text-3xl font-bold text-foreground">{attending}</span>
+                        <span className="pb-1 text-sm text-muted-foreground">/ {members.length} attending</span>
+                      </div>
+                      <div className="mt-2 h-2 rounded-full bg-secondary">
+                        <div
+                          className="h-2 rounded-full bg-gold transition-all"
+                          style={{ width: `${members.length ? (attending / members.length) * 100 : 0}%` }}
+                        />
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -62,7 +145,9 @@ function EventsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="font-heading text-gold">Attendance Roster</CardTitle>
+            <CardTitle className="font-heading text-gold">
+              Attendance Roster — {selectedWeek?.label ?? ""}
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -71,7 +156,12 @@ function EventsPage() {
                   <TableHead className="text-gold-muted font-heading">Member</TableHead>
                   <TableHead className="text-gold-muted font-heading">Rank</TableHead>
                   {EVENT_TYPES.map((e) => (
-                    <TableHead key={e.key} className="text-gold-muted font-heading text-center">{e.name}</TableHead>
+                    <TableHead key={e.key} className="text-gold-muted font-heading text-center">
+                      {e.name}
+                      {e.key === "svs" && selectedWeek && !selectedWeek.svsActive && (
+                        <span className="ml-1 text-xs text-muted-foreground">(Off)</span>
+                      )}
+                    </TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
@@ -80,15 +170,36 @@ function EventsPage() {
                   <TableRow key={m.id} className="border-border/50">
                     <TableCell className="font-medium text-foreground">{m.name}</TableCell>
                     <TableCell><RankBadge rank={m.rank} /></TableCell>
-                    {EVENT_TYPES.map((e) => (
-                      <TableCell key={e.key} className="text-center">
-                        {m.events[e.key] ? (
-                          <Check className="inline h-4 w-4 text-gold" />
-                        ) : (
-                          <X className="inline h-4 w-4 text-destructive/60" />
-                        )}
-                      </TableCell>
-                    ))}
+                    {EVENT_TYPES.map((e) => {
+                      const status = getStatus(selectedWeekId, m.id, e.key);
+                      const isSvsOff = e.key === "svs" && selectedWeek && !selectedWeek.svsActive;
+                      const canEdit = isCurrentWeek && !isSvsOff;
+
+                      return (
+                        <TableCell key={e.key} className="text-center">
+                          {isSvsOff ? (
+                            <Minus className="inline h-4 w-4 text-muted-foreground" />
+                          ) : canEdit ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger className="inline-flex items-center gap-1 rounded px-2 py-1 hover:bg-accent transition-colors focus:outline-none">
+                                <StatusIcon status={status} />
+                                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="center">
+                                <DropdownMenuItem onClick={() => handleStatusChange(m.id, e.key, "check")}>
+                                  <Check className="mr-2 h-4 w-4 text-gold" /> Attended
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleStatusChange(m.id, e.key, "x")}>
+                                  <X className="mr-2 h-4 w-4 text-destructive/60" /> Absent
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : (
+                            <StatusIcon status={status} />
+                          )}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
                 ))}
               </TableBody>
