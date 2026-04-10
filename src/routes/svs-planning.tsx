@@ -265,7 +265,7 @@ function SvsPlanningPage() {
           <>
             {/* Plan metadata */}
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="pt-6 space-y-4">
                 <div className="flex flex-wrap items-center gap-6">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground font-medium">Mode:</span>
@@ -296,12 +296,52 @@ function SvsPlanningPage() {
                       className="w-32 h-8"
                     />
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground font-medium">Result:</span>
+                    <Select
+                      value={selectedPlan.result || "none"}
+                      onValueChange={(v) => updatePlan(selectedPlan.id, { result: v === "none" ? "" : v as SvsResult, ...(v === "win" ? { capitalPercentage: 0 } : {}) })}
+                    >
+                      <SelectTrigger className={`w-28 h-8 ${selectedPlan.result === "win" ? "border-green-500 text-green-400" : selectedPlan.result === "lose" ? "border-red-500 text-red-400" : ""}`}>
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">—</SelectItem>
+                        <SelectItem value="win"><span className="text-green-400 font-medium">Win</span></SelectItem>
+                        <SelectItem value="lose"><span className="text-red-400 font-medium">Lose</span></SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {selectedPlan.result === "lose" && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground font-medium">Capital %:</span>
+                      <Input
+                        type="number"
+                        value={selectedPlan.capitalPercentage || ""}
+                        onChange={(e) => updatePlan(selectedPlan.id, { capitalPercentage: parseFloat(e.target.value) || 0 })}
+                        placeholder="e.g. 65"
+                        className="w-20 h-8"
+                        min={0}
+                        max={100}
+                      />
+                    </div>
+                  )}
                   {selectedPlan.mode && (
                     <Badge variant="outline" className={selectedPlan.mode === "invading" ? "border-destructive text-destructive" : "border-primary text-primary"}>
                       {selectedPlan.mode === "invading" ? "⚔ Invading" : "🛡 Defending"}
                       {selectedPlan.opponentServer ? ` vs ${selectedPlan.opponentServer}` : ""}
                     </Badge>
                   )}
+                </div>
+                {/* Notes */}
+                <div>
+                  <span className="text-sm text-muted-foreground font-medium">Notes & Insights</span>
+                  <Textarea
+                    value={selectedPlan.notes}
+                    onChange={(e) => updatePlan(selectedPlan.id, { notes: e.target.value })}
+                    placeholder="Add notes, strategies, insights, post-match analysis..."
+                    className="mt-1.5 min-h-[80px]"
+                  />
                 </div>
               </CardContent>
             </Card>
