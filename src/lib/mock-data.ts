@@ -8,6 +8,12 @@ export interface Member {
   events: Record<string, boolean>;
 }
 
+export interface ArchivedMember {
+  member: Member;
+  archivedAt: string;
+  reason: string;
+}
+
 export const EVENT_TYPES = [
   { key: "ava", name: "AvA" },
   { key: "svs", name: "SvS" },
