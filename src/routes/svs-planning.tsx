@@ -56,7 +56,7 @@ export const Route = createFileRoute("/svs-planning")({
 const OFFICER_ROLES: SvsRole[] = ["deputy", "commander", "intel_officer"];
 
 function SvsPlanningPage() {
-  const { members, setMembers } = useMembers();
+  const { members } = useMembers();
   const { plans, createPlan, updateEntry } = useSvsPlans();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("name");
