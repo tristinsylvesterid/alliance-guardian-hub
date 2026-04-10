@@ -205,13 +205,15 @@ function SvsPlanningPage() {
     setConflictDialog(null);
   }
 
+  const isDefending = selectedPlan?.mode === "defending";
+
   const SORT_COLUMNS: [SortKey, string, string][] = [
     ["name", "Member", "w-44"],
     ["power", "Power (M)", "w-24"],
     ["pollResponse", "Poll", "w-28"],
     ["team", "Team", "w-36"],
     ["role", "Role", "w-36"],
-    ["location", "Location (X / Y)", "w-40"],
+    ...(isDefending ? [["location", "Location (X / Y)", "w-40"] as [SortKey, string, string]] : []),
   ];
 
   return (
