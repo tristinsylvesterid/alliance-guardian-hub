@@ -267,7 +267,8 @@ function SvsPlanningPage() {
                         <TableCell>
                           <Input
                             type="number"
-                            value={entry.power}
+                            value={entry.power || ""}
+                            placeholder="—"
                             onChange={(e) =>
                               handlePowerChange(
                                 entry.memberId,
