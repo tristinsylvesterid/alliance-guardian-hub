@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,10 @@ import {
   type SvsRole,
   type PollResponse,
 } from "@/hooks/use-svs-plans";
-import { Swords, Plus } from "lucide-react";
+import { Swords, Plus, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+
+type SortKey = "name" | "power" | "pollResponse" | "team" | "role";
+type SortDir = "asc" | "desc";
 
 export const Route = createFileRoute("/svs-planning")({
   component: SvsPlanningPage,
@@ -53,9 +56,11 @@ export const Route = createFileRoute("/svs-planning")({
 const OFFICER_ROLES: SvsRole[] = ["deputy", "commander", "intel_officer"];
 
 function SvsPlanningPage() {
-  const { members, setMembers } = useMembers();
+  const { members } = useMembers();
   const { plans, createPlan, updateEntry } = useSvsPlans();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   // Role conflict dialog state
   const [conflictDialog, setConflictDialog] = useState<{
@@ -70,6 +75,35 @@ function SvsPlanningPage() {
 
   const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? plans[0] ?? null;
 
+  const TEAM_ORDER: Record<SvsTeam, number> = { team1: 0, team2: 1, team3: 2, team4: 3, fighting_elsewhere: 4 };
+  const ROLE_ORDER: Record<SvsRole, number> = { commander: 0, deputy: 1, intel_officer: 2, fighter: 3 };
+
+  const sortedEntries = useMemo(() => {
+    if (!selectedPlan) return [];
+    const entries = [...selectedPlan.entries];
+    entries.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "name": cmp = a.name.localeCompare(b.name); break;
+        case "power": cmp = a.power - b.power; break;
+        case "pollResponse": cmp = a.pollResponse.localeCompare(b.pollResponse); break;
+        case "team": cmp = TEAM_ORDER[a.team] - TEAM_ORDER[b.team]; break;
+        case "role": cmp = ROLE_ORDER[a.role] - ROLE_ORDER[b.role]; break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return entries;
+  }, [selectedPlan, sortKey, sortDir]);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
   function handleCreatePlan() {
     const plan = createPlan(members);
     setSelectedPlanId(plan.id);
@@ -78,14 +112,6 @@ function SvsPlanningPage() {
   function handlePowerChange(memberId: string, newPower: number) {
     if (!selectedPlan) return;
     updateEntry(selectedPlan.id, memberId, { power: newPower });
-    // Sync back to member profile
-    setMembers((prev) =>
-      prev.map((m) =>
-        m.id === memberId
-          ? { ...m, metrics: { ...m.metrics, techPower: newPower } }
-          : m
-      )
-    );
   }
 
   function handlePollChange(memberId: string, response: PollResponse) {
@@ -208,15 +234,32 @@ function SvsPlanningPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-48">Member</TableHead>
-                      <TableHead className="w-28">Power (M)</TableHead>
-                      <TableHead className="w-32">Poll Response</TableHead>
-                      <TableHead className="w-40">Team</TableHead>
-                      <TableHead className="w-40">Role</TableHead>
+                      {([
+                        ["name", "Member", "w-48"],
+                        ["power", "Power (M)", "w-28"],
+                        ["pollResponse", "Poll Response", "w-32"],
+                        ["team", "Team", "w-40"],
+                        ["role", "Role", "w-40"],
+                      ] as [SortKey, string, string][]).map(([key, label, width]) => (
+                        <TableHead
+                          key={key}
+                          className={`${width} cursor-pointer select-none hover:text-foreground transition-colors`}
+                          onClick={() => toggleSort(key)}
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            {label}
+                            {sortKey === key ? (
+                              sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                            ) : (
+                              <ArrowUpDown className="h-3 w-3 opacity-30" />
+                            )}
+                          </span>
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {selectedPlan.entries.map((entry) => (
+                    {sortedEntries.map((entry) => (
                       <TableRow key={entry.memberId}>
                         <TableCell className="font-medium">
                           {entry.name}
@@ -224,7 +267,8 @@ function SvsPlanningPage() {
                         <TableCell>
                           <Input
                             type="number"
-                            value={entry.power}
+                            value={entry.power || ""}
+                            placeholder="—"
                             onChange={(e) =>
                               handlePowerChange(
                                 entry.memberId,
