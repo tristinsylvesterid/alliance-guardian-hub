@@ -61,7 +61,7 @@ export function useSvsPlans() {
       entries: members.map((m) => ({
         memberId: m.id,
         name: m.name,
-        power: typeof m.metrics.techPower === "number" ? m.metrics.techPower : 0,
+        power: 0,
         pollResponse: "" as PollResponse,
         team: "team1" as SvsTeam,
         role: "fighter" as SvsRole,
