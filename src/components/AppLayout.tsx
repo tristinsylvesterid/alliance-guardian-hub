@@ -20,7 +20,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-3 border-b border-sidebar-border px-6 py-5">
           <Shield className="h-8 w-8 text-gold" />
           <div>
-            <h1 className="font-heading text-lg font-bold tracking-wide text-gold">LAST Z</h1>
+            <h1 className="font-heading text-lg font-bold tracking-wide text-gold">nOva</h1>
             <p className="text-xs text-sidebar-foreground/60">Alliance Manager</p>
           </div>
         </div>
