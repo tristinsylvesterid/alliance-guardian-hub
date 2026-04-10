@@ -100,6 +100,7 @@
   --rank-r3: oklch(0.78 0.15 290);
   --rank-r4: oklch(0.70 0.20 330);
   --rank-r5: oklch(0.72 0.12 50);
+  --nova-glow: oklch(0.70 0.20 300);
 }
 
 @layer base {
