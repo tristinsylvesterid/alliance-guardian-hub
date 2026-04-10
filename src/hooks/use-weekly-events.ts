@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from "react";
 export type EventStatus = "check" | "x" | "na";
 
 export interface WeeklyEventData {
-  weekId: string; // ISO week start date, e.g. "2026-04-06"
+  weekId: string; // ISO week start date (Monday), e.g. "2026-04-06"
   label: string;
   svsActive: boolean;
   attendance: Record<string, Record<string, EventStatus>>; // memberId -> eventKey -> status
@@ -24,7 +24,7 @@ function formatWeekId(date: Date): string {
 
 function formatWeekLabel(start: Date): string {
   const end = new Date(start);
-  end.setDate(end.getDate() + 6);
+  end.setDate(end.getDate() + 6); // Sunday
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
   return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", opts)}, ${end.getFullYear()}`;
 }
@@ -47,7 +47,11 @@ function generatePastWeeks(count: number): WeeklyEventData[] {
   return weeks;
 }
 
-let globalWeeks: WeeklyEventData[] = generatePastWeeks(8);
+const MAX_ACTIVE_WEEKS = 4;
+const initialWeeks = generatePastWeeks(8);
+
+let globalActiveWeeks: WeeklyEventData[] = initialWeeks.slice(0, MAX_ACTIVE_WEEKS);
+let globalArchivedWeeks: WeeklyEventData[] = initialWeeks.slice(MAX_ACTIVE_WEEKS);
 let listeners: Set<() => void> = new Set();
 
 function notify() {
@@ -63,41 +67,65 @@ export function useWeeklyEvents() {
     return () => { listeners.delete(rerender); };
   }, [rerender]);
 
-  function setWeeks(updater: WeeklyEventData[] | ((prev: WeeklyEventData[]) => WeeklyEventData[])) {
-    globalWeeks = typeof updater === "function" ? updater(globalWeeks) : updater;
-    notify();
-  }
-
   function getStatus(weekId: string, memberId: string, eventKey: string): EventStatus {
-    const week = globalWeeks.find((w) => w.weekId === weekId);
+    const allWeeks = [...globalActiveWeeks, ...globalArchivedWeeks];
+    const week = allWeeks.find((w) => w.weekId === weekId);
     if (!week) return "x";
     if (eventKey === "svs" && !week.svsActive) return "na";
     return week.attendance[memberId]?.[eventKey] ?? "x";
   }
 
   function setStatus(weekId: string, memberId: string, eventKey: string, status: EventStatus) {
-    setWeeks((prev) =>
-      prev.map((w) => {
-        if (w.weekId !== weekId) return w;
-        const memberAtt = { ...w.attendance[memberId], [eventKey]: status };
-        return { ...w, attendance: { ...w.attendance, [memberId]: memberAtt } };
-      })
-    );
+    globalActiveWeeks = globalActiveWeeks.map((w) => {
+      if (w.weekId !== weekId) return w;
+      const memberAtt = { ...w.attendance[memberId], [eventKey]: status };
+      return { ...w, attendance: { ...w.attendance, [memberId]: memberAtt } };
+    });
+    notify();
   }
 
   function toggleSvs(weekId: string, active: boolean) {
-    setWeeks((prev) =>
-      prev.map((w) => {
-        if (w.weekId !== weekId) return w;
-        return { ...w, svsActive: active };
-      })
-    );
+    globalActiveWeeks = globalActiveWeeks.map((w) => {
+      if (w.weekId !== weekId) return w;
+      return { ...w, svsActive: active };
+    });
+    notify();
+  }
+
+  function startNewWeek() {
+    // Current newest week becomes index 0; push oldest active to archive
+    const currentNewest = globalActiveWeeks[0];
+    if (!currentNewest) return;
+
+    const newestStart = new Date(currentNewest.weekId + "T00:00:00");
+    const nextStart = new Date(newestStart);
+    nextStart.setDate(nextStart.getDate() + 7);
+
+    const newWeek: WeeklyEventData = {
+      weekId: formatWeekId(nextStart),
+      label: formatWeekLabel(nextStart),
+      svsActive: true,
+      attendance: {},
+    };
+
+    // Move the oldest active week to archive
+    if (globalActiveWeeks.length >= MAX_ACTIVE_WEEKS) {
+      const oldest = globalActiveWeeks[globalActiveWeeks.length - 1];
+      globalArchivedWeeks = [oldest, ...globalArchivedWeeks];
+      globalActiveWeeks = [newWeek, ...globalActiveWeeks.slice(0, MAX_ACTIVE_WEEKS - 1)];
+    } else {
+      globalActiveWeeks = [newWeek, ...globalActiveWeeks];
+    }
+    notify();
   }
 
   return {
-    weeks: globalWeeks,
+    activeWeeks: globalActiveWeeks,
+    archivedWeeks: globalArchivedWeeks,
+    currentWeek: globalActiveWeeks[0] ?? null,
     getStatus,
     setStatus,
     toggleSvs,
+    startNewWeek,
   };
 }

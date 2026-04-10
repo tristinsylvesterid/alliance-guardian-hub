@@ -6,12 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { RankBadge } from "@/components/RankBadge";
 import { EVENT_TYPES } from "@/lib/mock-data";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
 import { calculateTotalScore, getRank } from "@/lib/scoring";
-import { Check, X, Minus, ChevronDown } from "lucide-react";
+import { Check, X, Minus, ChevronDown, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/events")({
   component: EventsPage,
@@ -31,11 +32,11 @@ function StatusIcon({ status }: { status: EventStatus }) {
 
 function EventsPage() {
   const { members: rawMembers, setMembers } = useMembers();
-  const { weeks, getStatus, setStatus, toggleSvs } = useWeeklyEvents();
-  const [selectedWeekId, setSelectedWeekId] = useState(weeks[0]?.weekId ?? "");
+  const { activeWeeks, getStatus, setStatus, toggleSvs, startNewWeek } = useWeeklyEvents();
+  const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
 
-  const selectedWeek = weeks.find((w) => w.weekId === selectedWeekId);
-  const isCurrentWeek = selectedWeekId === weeks[0]?.weekId;
+  const selectedWeek = activeWeeks.find((w) => w.weekId === selectedWeekId);
+  const isCurrentWeek = selectedWeekId === activeWeeks[0]?.weekId;
 
   const members = rawMembers.map((m) => {
     const score = calculateTotalScore(m.metrics);
@@ -46,7 +47,6 @@ function EventsPage() {
   function handleStatusChange(memberId: string, eventKey: string, newStatus: EventStatus) {
     setStatus(selectedWeekId, memberId, eventKey, newStatus);
 
-    // If SvS check, update member's svsParticipation metric
     if (eventKey === "svs") {
       setMembers((prev) =>
         prev.map((m) =>
@@ -60,11 +60,19 @@ function EventsPage() {
 
   function handleSvsToggle(active: boolean) {
     toggleSvs(selectedWeekId, active);
+  }
 
-    // If toggling off, set all members' SvS participation to false for this context
-    if (!active) {
-      // No metric update needed when toggling off - N/A means not applicable
-    }
+  function handleStartNewWeek() {
+    startNewWeek();
+    // Select the new current week
+    setTimeout(() => {
+      setSelectedWeekId(activeWeeks[0]?.weekId ?? "");
+    }, 0);
+  }
+
+  // Sync selectedWeekId if weeks change
+  if (!activeWeeks.find((w) => w.weekId === selectedWeekId) && activeWeeks[0]) {
+    setSelectedWeekId(activeWeeks[0].weekId);
   }
 
   return (
@@ -76,14 +84,17 @@ function EventsPage() {
             <p className="mt-1 text-sm text-muted-foreground">Track weekly attendance across alliance events</p>
           </div>
           <div className="flex items-center gap-3">
+            <Button onClick={handleStartNewWeek} variant="outline" className="border-gold/30 text-gold hover:bg-gold/10">
+              <Plus className="mr-2 h-4 w-4" /> New Week
+            </Button>
             <Select value={selectedWeekId} onValueChange={setSelectedWeekId}>
               <SelectTrigger className="w-[260px] border-border bg-card text-foreground">
                 <SelectValue placeholder="Select week" />
               </SelectTrigger>
               <SelectContent>
-                {weeks.map((w) => (
+                {activeWeeks.map((w, i) => (
                   <SelectItem key={w.weekId} value={w.weekId}>
-                    {w.weekId === weeks[0]?.weekId ? `Current: ${w.label}` : w.label}
+                    {i === 0 ? `Current: ${w.label}` : w.label}
                   </SelectItem>
                 ))}
               </SelectContent>
