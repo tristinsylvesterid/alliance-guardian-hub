@@ -69,6 +69,9 @@ export function useSvsPlans() {
       createdAt: now.toISOString(),
       mode: "",
       opponentServer: "",
+      result: "",
+      capitalPercentage: 0,
+      notes: "",
       entries: members.map((m) => ({
         memberId: m.id,
         name: m.name,
