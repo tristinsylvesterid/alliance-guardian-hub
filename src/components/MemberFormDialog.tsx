@@ -161,6 +161,31 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
               ))}
             </div>
           </div>
+
+          {/* Assigned Location */}
+          <div className="space-y-1">
+            <h3 className="font-heading text-sm text-gold-muted uppercase tracking-wider">Assigned Location</h3>
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">X Coordinate</Label>
+                <Input
+                  type="number"
+                  value={metrics.locationX ? String(metrics.locationX) : ""}
+                  placeholder="X"
+                  onChange={(e) => setMetric("locationX", parseInt(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Y Coordinate</Label>
+                <Input
+                  type="number"
+                  value={metrics.locationY ? String(metrics.locationY) : ""}
+                  placeholder="Y"
+                  onChange={(e) => setMetric("locationY", parseInt(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="flex justify-between sm:justify-between">
