@@ -59,6 +59,8 @@ function SvsPlanningPage() {
   const { members, setMembers } = useMembers();
   const { plans, createPlan, updateEntry } = useSvsPlans();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   // Role conflict dialog state
   const [conflictDialog, setConflictDialog] = useState<{
@@ -73,6 +75,35 @@ function SvsPlanningPage() {
 
   const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? plans[0] ?? null;
 
+  const TEAM_ORDER: Record<SvsTeam, number> = { team1: 0, team2: 1, team3: 2, team4: 3, fighting_elsewhere: 4 };
+  const ROLE_ORDER: Record<SvsRole, number> = { commander: 0, deputy: 1, intel_officer: 2, fighter: 3 };
+
+  const sortedEntries = useMemo(() => {
+    if (!selectedPlan) return [];
+    const entries = [...selectedPlan.entries];
+    entries.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "name": cmp = a.name.localeCompare(b.name); break;
+        case "power": cmp = a.power - b.power; break;
+        case "pollResponse": cmp = a.pollResponse.localeCompare(b.pollResponse); break;
+        case "team": cmp = TEAM_ORDER[a.team] - TEAM_ORDER[b.team]; break;
+        case "role": cmp = ROLE_ORDER[a.role] - ROLE_ORDER[b.role]; break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return entries;
+  }, [selectedPlan, sortKey, sortDir]);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
   function handleCreatePlan() {
     const plan = createPlan(members);
     setSelectedPlanId(plan.id);
@@ -81,14 +112,6 @@ function SvsPlanningPage() {
   function handlePowerChange(memberId: string, newPower: number) {
     if (!selectedPlan) return;
     updateEntry(selectedPlan.id, memberId, { power: newPower });
-    // Sync back to member profile
-    setMembers((prev) =>
-      prev.map((m) =>
-        m.id === memberId
-          ? { ...m, metrics: { ...m.metrics, techPower: newPower } }
-          : m
-      )
-    );
   }
 
   function handlePollChange(memberId: string, response: PollResponse) {
