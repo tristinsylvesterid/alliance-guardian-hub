@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SvsPlanningRouteImport } from './routes/svs-planning'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RankingsRouteImport } from './routes/rankings'
 import { Route as MembersRouteImport } from './routes/members'
@@ -17,6 +18,11 @@ import { Route as EventArchiveRouteImport } from './routes/event-archive'
 import { Route as ArchiveRouteImport } from './routes/archive'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SvsPlanningRoute = SvsPlanningRouteImport.update({
+  id: '/svs-planning',
+  path: '/svs-planning',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/members': typeof MembersRoute
   '/rankings': typeof RankingsRoute
   '/settings': typeof SettingsRoute
+  '/svs-planning': typeof SvsPlanningRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/members': typeof MembersRoute
   '/rankings': typeof RankingsRoute
   '/settings': typeof SettingsRoute
+  '/svs-planning': typeof SvsPlanningRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/members': typeof MembersRoute
   '/rankings': typeof RankingsRoute
   '/settings': typeof SettingsRoute
+  '/svs-planning': typeof SvsPlanningRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/members'
     | '/rankings'
     | '/settings'
+    | '/svs-planning'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/members'
     | '/rankings'
     | '/settings'
+    | '/svs-planning'
   id:
     | '__root__'
     | '/'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/members'
     | '/rankings'
     | '/settings'
+    | '/svs-planning'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,10 +131,18 @@ export interface RootRouteChildren {
   MembersRoute: typeof MembersRoute
   RankingsRoute: typeof RankingsRoute
   SettingsRoute: typeof SettingsRoute
+  SvsPlanningRoute: typeof SvsPlanningRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/svs-planning': {
+      id: '/svs-planning'
+      path: '/svs-planning'
+      fullPath: '/svs-planning'
+      preLoaderRoute: typeof SvsPlanningRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -183,6 +203,7 @@ const rootRouteChildren: RootRouteChildren = {
   MembersRoute: MembersRoute,
   RankingsRoute: RankingsRoute,
   SettingsRoute: SettingsRoute,
+  SvsPlanningRoute: SvsPlanningRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
