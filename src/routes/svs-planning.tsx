@@ -38,8 +38,10 @@ import {
   type SvsTeam,
   type SvsRole,
   type SvsMode,
+  type SvsResult,
   type PollResponse,
 } from "@/hooks/use-svs-plans";
+import { Textarea } from "@/components/ui/textarea";
 import { Swords, Plus, ArrowUpDown, ArrowUp, ArrowDown, Shield, Target } from "lucide-react";
 
 type SortKey = "name" | "power" | "pollResponse" | "team" | "role" | "location";
