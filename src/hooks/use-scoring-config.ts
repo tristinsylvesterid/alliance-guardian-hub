@@ -12,13 +12,17 @@ function rowToMetric(row: {
   brackets: Json;
   sort_order: number;
 }): MetricDefinition {
-  const brackets = Array.isArray(row.brackets) ? row.brackets.map((b: Record<string, unknown>) => ({
-    label: String(b.label ?? ""),
-    points: Number(b.points ?? 0),
-    min: b.min != null ? Number(b.min) : undefined,
-    max: b.max != null ? Number(b.max) : undefined,
-    condition: b.condition != null ? String(b.condition) : undefined,
-  })) : [];
+  const rawBrackets = Array.isArray(row.brackets) ? row.brackets : [];
+  const brackets = rawBrackets.map((b) => {
+    const obj = b as Record<string, Json>;
+    return {
+      label: String(obj.label ?? ""),
+      points: Number(obj.points ?? 0),
+      min: obj.min != null ? Number(obj.min) : undefined,
+      max: obj.max != null ? Number(obj.max) : undefined,
+      condition: obj.condition != null ? String(obj.condition) : undefined,
+    };
+  });
 
   return {
     key: row.key,
@@ -35,7 +39,7 @@ export function useScoringConfig() {
 
   const fetchMetrics = useCallback(async () => {
     const { data } = await supabase.from("scoring_config").select("*").order("sort_order");
-    if (data) setMetrics(data.map((r) => rowToMetric(r as unknown as Parameters<typeof rowToMetric>[0])));
+    if (data) setMetrics(data.map(rowToMetric));
   }, []);
 
   useEffect(() => {
@@ -43,7 +47,7 @@ export function useScoringConfig() {
   }, [fetchMetrics]);
 
   async function updateMetric(key: string, updates: Partial<MetricDefinition>) {
-    const dbUpdates: Record<string, unknown> = {};
+    const dbUpdates: { name?: string; max_points?: number; unit?: string } = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.maxPoints !== undefined) dbUpdates.max_points = updates.maxPoints;
     if (updates.unit !== undefined) dbUpdates.unit = updates.unit;

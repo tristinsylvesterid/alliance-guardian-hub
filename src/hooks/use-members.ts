@@ -54,19 +54,15 @@ export function useMembers() {
 
   async function saveMember(member: Member) {
     const metricsJson = member.metrics as unknown as Json;
-    const row = {
+    await supabase.from("members").upsert({
       id: member.id,
       name: member.name,
       leadership_rank: member.leadershipRank || null,
       metrics: metricsJson,
       location_x: member.locationX ?? (typeof member.metrics.locationX === "number" ? member.metrics.locationX : 0),
       location_y: member.locationY ?? (typeof member.metrics.locationY === "number" ? member.metrics.locationY : 0),
-    };
-    const { data } = await supabase.from("members").upsert(row).select().single();
-    if (data) {
-      await fetchMembers();
-      return rowToMember(data);
-    }
+    }).select().single();
+    await fetchMembers();
     return member;
   }
 
@@ -75,8 +71,13 @@ export function useMembers() {
     await fetchMembers();
   }
 
-  async function updateMemberField(id: string, updates: Record<string, unknown>) {
-    await supabase.from("members").update(updates).eq("id", id);
+  async function updateMemberLocation(id: string, locationX: number, locationY: number) {
+    await supabase.from("members").update({ location_x: locationX, location_y: locationY }).eq("id", id);
+    await fetchMembers();
+  }
+
+  async function updateMemberMetrics(id: string, metrics: Record<string, number | boolean | string>) {
+    await supabase.from("members").update({ metrics: metrics as unknown as Json }).eq("id", id);
     await fetchMembers();
   }
 
@@ -85,7 +86,8 @@ export function useMembers() {
     loading,
     saveMember,
     deleteMember,
-    updateMemberField,
+    updateMemberLocation,
+    updateMemberMetrics,
     refetch: fetchMembers,
   };
 }

@@ -94,7 +94,7 @@ export function useSvsPlans() {
     fetchPlans();
   }, [fetchPlans]);
 
-  async function createPlan(members: Member[]): Promise<SvsPlan> {
+  async function createPlan(members: Member[]): Promise<string> {
     const now = new Date();
     const label = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
@@ -111,9 +111,9 @@ export function useSvsPlans() {
       member_id: m.id,
       name: m.name,
       power: 0,
-      poll_response: "" as const,
-      team: "team1" as const,
-      role: "fighter" as const,
+      poll_response: "",
+      team: "team1",
+      role: "fighter",
       location_x: m.locationX ?? 0,
       location_y: m.locationY ?? 0,
     }));
@@ -123,22 +123,19 @@ export function useSvsPlans() {
     }
 
     await fetchPlans();
-    return plans.find((p) => p.id === planRow.id) ?? {
-      id: planRow.id,
-      label,
-      createdAt: planRow.created_at,
-      mode: "",
-      opponentServer: "",
-      svsWeek: "",
-      result: "",
-      capitalPercentage: 0,
-      notes: "",
-      entries: [],
-    };
+    return planRow.id;
   }
 
   async function updateEntry(planId: string, memberId: string, updates: Partial<SvsMemberEntry>) {
-    const dbUpdates: Record<string, unknown> = {};
+    const dbUpdates: {
+      power?: number;
+      poll_response?: string;
+      team?: string;
+      role?: string;
+      location_x?: number;
+      location_y?: number;
+      name?: string;
+    } = {};
     if (updates.power !== undefined) dbUpdates.power = updates.power;
     if (updates.pollResponse !== undefined) dbUpdates.poll_response = updates.pollResponse;
     if (updates.team !== undefined) dbUpdates.team = updates.team;
@@ -156,7 +153,14 @@ export function useSvsPlans() {
   }
 
   async function updatePlan(planId: string, updates: Partial<Pick<SvsPlan, "mode" | "opponentServer" | "svsWeek" | "result" | "capitalPercentage" | "notes">>) {
-    const dbUpdates: Record<string, unknown> = {};
+    const dbUpdates: {
+      mode?: string;
+      opponent_server?: string;
+      svs_week?: string;
+      result?: string;
+      capital_percentage?: number;
+      notes?: string;
+    } = {};
     if (updates.mode !== undefined) dbUpdates.mode = updates.mode;
     if (updates.opponentServer !== undefined) dbUpdates.opponent_server = updates.opponentServer;
     if (updates.svsWeek !== undefined) dbUpdates.svs_week = updates.svsWeek;
