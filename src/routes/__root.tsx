@@ -37,10 +37,12 @@ export const Route = createRootRoute({
       { property: "og:title", content: "Last Z Alliance Manager" },
       { property: "og:description", content: "Alliance management tool for Last Z Survival Shooter" },
       { property: "og:type", content: "website" },
-      { property: "og:image", content: "https://lovable.dev/opengraph-image-p98pqg.png" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/33e12d0a-e5e4-4f44-8f5a-5d6a79b287c7/id-preview-f9dbe3e4--99e412c0-072e-4ae2-84ce-f395ef6faed9.lovable.app-1775854775216.png" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:image", content: "https://lovable.dev/opengraph-image-p98pqg.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/33e12d0a-e5e4-4f44-8f5a-5d6a79b287c7/id-preview-f9dbe3e4--99e412c0-072e-4ae2-84ce-f395ef6faed9.lovable.app-1775854775216.png" },
+      { name: "twitter:title", content: "Last Z Alliance Manager" },
+      { name: "twitter:description", content: "Alliance management tool for Last Z Survival Shooter" },
     ],
     links: [
       {
