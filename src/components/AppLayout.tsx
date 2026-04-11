@@ -1,5 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Trophy, Calendar, Settings, Shield, Archive, CalendarClock, Swords } from "lucide-react";
+import { LayoutDashboard, Users, Trophy, Calendar, Settings, Shield, Archive, CalendarClock, Swords, UserCog, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -9,7 +10,8 @@ const navItems = [
   { to: "/svs-planning", label: "SvS Planning", icon: Swords },
   { to: "/event-archive", label: "Event Archive", icon: CalendarClock },
   { to: "/archive", label: "Member Archive", icon: Archive },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/settings", label: "Settings", icon: Settings, adminOnly: true },
+  { to: "/admin", label: "User Management", icon: UserCog, adminOnly: true },
 ] as const;
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
