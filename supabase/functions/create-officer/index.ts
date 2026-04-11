@@ -5,13 +5,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function usernameToEmail(username: string) {
+  return `${username.toLowerCase().trim()}@nova.local`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Verify the caller is an admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -24,7 +27,7 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify caller with anon client
+    // Verify caller
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -51,21 +54,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, password, displayName, role } = await req.json();
+    const { username, password, displayName, role } = await req.json();
 
-    if (!email || !password || !displayName) {
+    if (!username || !password || !displayName) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Create the user
+    const email = usernameToEmail(username);
+
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { display_name: displayName },
+      user_metadata: { display_name: displayName, username: username.trim() },
     });
 
     if (createError || !newUser.user) {
@@ -75,7 +79,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Assign role
     const validRole = role === "admin" ? "admin" : "officer";
     await adminClient.from("user_roles").insert({
       user_id: newUser.user.id,
