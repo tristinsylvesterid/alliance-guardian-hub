@@ -15,15 +15,18 @@ export const Route = createFileRoute("/login")({
   }),
 });
 
+function usernameToEmail(username: string) {
+  return `${username.toLowerCase().trim()}@nova.local`;
+}
+
 function LoginPage() {
   const { signIn, user, loading } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // If already logged in, redirect
   if (!loading && user) {
     navigate({ to: "/" });
     return null;
@@ -33,9 +36,9 @@ function LoginPage() {
     e.preventDefault();
     setError("");
     setSubmitting(true);
-    const { error: err } = await signIn(email, password);
+    const { error: err } = await signIn(usernameToEmail(username), password);
     if (err) {
-      setError(err);
+      setError("Invalid username or password");
       setSubmitting(false);
     } else {
       navigate({ to: "/" });
@@ -62,17 +65,17 @@ function LoginPage() {
             </div>
           )}
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-foreground">
-              Email
+            <label htmlFor="username" className="text-sm font-medium text-foreground">
+              Username
             </label>
             <Input
-              id="email"
-              type="email"
-              placeholder="officer@alliance.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="username"
+              type="text"
+              placeholder="Your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
-              autoComplete="email"
+              autoComplete="username"
             />
           </div>
           <div className="space-y-2">

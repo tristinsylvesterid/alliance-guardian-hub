@@ -34,7 +34,7 @@ function AdminPage() {
   const [users, setUsers] = useState<OfficerUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
-  const [newEmail, setNewEmail] = useState("");
+  const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [newRole, setNewRole] = useState<"admin" | "officer">("officer");
@@ -86,7 +86,7 @@ function AdminPage() {
   }
 
   const handleCreateUser = async () => {
-    if (!newEmail || !newPassword || !newDisplayName) {
+    if (!newUsername || !newPassword || !newDisplayName) {
       toast.error("All fields are required");
       return;
     }
@@ -108,7 +108,7 @@ function AdminPage() {
           Authorization: `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
-          email: newEmail,
+          username: newUsername,
           password: newPassword,
           displayName: newDisplayName,
           role: newRole,
@@ -119,7 +119,7 @@ function AdminPage() {
     if (res.ok) {
       toast.success(`Account created for ${newDisplayName}`);
       setCreateOpen(false);
-      setNewEmail("");
+      setNewUsername("");
       setNewPassword("");
       setNewDisplayName("");
       setNewRole("officer");
@@ -200,12 +200,12 @@ function AdminPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
+              <label className="text-sm font-medium">Username</label>
               <Input
-                type="email"
-                placeholder="officer@email.com"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
+                type="text"
+                placeholder="officername"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
               />
             </div>
             <div className="space-y-2">
