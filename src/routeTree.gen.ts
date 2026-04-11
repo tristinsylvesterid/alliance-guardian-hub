@@ -13,9 +13,11 @@ import { Route as SvsPlanningRouteImport } from './routes/svs-planning'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RankingsRouteImport } from './routes/rankings'
 import { Route as MembersRouteImport } from './routes/members'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as EventArchiveRouteImport } from './routes/event-archive'
 import { Route as ArchiveRouteImport } from './routes/archive'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SvsPlanningRoute = SvsPlanningRouteImport.update({
@@ -38,6 +40,11 @@ const MembersRoute = MembersRouteImport.update({
   path: '/members',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
   path: '/events',
@@ -53,6 +60,11 @@ const ArchiveRoute = ArchiveRouteImport.update({
   path: '/archive',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -61,9 +73,11 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/archive': typeof ArchiveRoute
   '/event-archive': typeof EventArchiveRoute
   '/events': typeof EventsRoute
+  '/login': typeof LoginRoute
   '/members': typeof MembersRoute
   '/rankings': typeof RankingsRoute
   '/settings': typeof SettingsRoute
@@ -71,9 +85,11 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/archive': typeof ArchiveRoute
   '/event-archive': typeof EventArchiveRoute
   '/events': typeof EventsRoute
+  '/login': typeof LoginRoute
   '/members': typeof MembersRoute
   '/rankings': typeof RankingsRoute
   '/settings': typeof SettingsRoute
@@ -82,9 +98,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/archive': typeof ArchiveRoute
   '/event-archive': typeof EventArchiveRoute
   '/events': typeof EventsRoute
+  '/login': typeof LoginRoute
   '/members': typeof MembersRoute
   '/rankings': typeof RankingsRoute
   '/settings': typeof SettingsRoute
@@ -94,9 +112,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/archive'
     | '/event-archive'
     | '/events'
+    | '/login'
     | '/members'
     | '/rankings'
     | '/settings'
@@ -104,9 +124,11 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/archive'
     | '/event-archive'
     | '/events'
+    | '/login'
     | '/members'
     | '/rankings'
     | '/settings'
@@ -114,9 +136,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/archive'
     | '/event-archive'
     | '/events'
+    | '/login'
     | '/members'
     | '/rankings'
     | '/settings'
@@ -125,9 +149,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   ArchiveRoute: typeof ArchiveRoute
   EventArchiveRoute: typeof EventArchiveRoute
   EventsRoute: typeof EventsRoute
+  LoginRoute: typeof LoginRoute
   MembersRoute: typeof MembersRoute
   RankingsRoute: typeof RankingsRoute
   SettingsRoute: typeof SettingsRoute
@@ -164,6 +190,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MembersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/events': {
       id: '/events'
       path: '/events'
@@ -185,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ArchiveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -197,9 +237,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   ArchiveRoute: ArchiveRoute,
   EventArchiveRoute: EventArchiveRoute,
   EventsRoute: EventsRoute,
+  LoginRoute: LoginRoute,
   MembersRoute: MembersRoute,
   RankingsRoute: RankingsRoute,
   SettingsRoute: SettingsRoute,

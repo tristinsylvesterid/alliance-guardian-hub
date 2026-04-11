@@ -1,5 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Trophy, Calendar, Settings, Shield, Archive, CalendarClock, Swords } from "lucide-react";
+import { LayoutDashboard, Users, Trophy, Calendar, Settings, Shield, Archive, CalendarClock, Swords, UserCog, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -9,11 +10,15 @@ const navItems = [
   { to: "/svs-planning", label: "SvS Planning", icon: Swords },
   { to: "/event-archive", label: "Event Archive", icon: CalendarClock },
   { to: "/archive", label: "Member Archive", icon: Archive },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/settings", label: "Settings", icon: Settings, adminOnly: true },
+  { to: "/admin", label: "User Management", icon: UserCog, adminOnly: true },
 ] as const;
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const { isAdmin, displayName, signOut } = useAuth();
+
+  const filteredNav = navItems.filter((item) => !("adminOnly" in item && item.adminOnly) || isAdmin);
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -30,7 +35,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {navItems.map((item) => {
+          {filteredNav.map((item) => {
             const isActive = item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to);
             return (
               <Link
@@ -50,8 +55,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-sidebar-border px-6 py-4">
-          <p className="text-xs text-sidebar-foreground/40">Phase 1 · Mock Data</p>
+        <div className="border-t border-sidebar-border px-4 py-4 space-y-3">
+          <div className="flex items-center gap-2 px-2">
+            <div className="h-7 w-7 rounded-full bg-gold/20 flex items-center justify-center text-xs font-bold text-gold">
+              {displayName?.charAt(0)?.toUpperCase() || "?"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-sidebar-foreground truncate">{displayName || "Officer"}</p>
+              <p className="text-[10px] text-sidebar-foreground/40">{isAdmin ? "Admin" : "Officer"}</p>
+            </div>
+          </div>
+          <button
+            onClick={signOut}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-all"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Sign Out
+          </button>
         </div>
       </aside>
 
