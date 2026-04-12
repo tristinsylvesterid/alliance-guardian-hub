@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Member } from "@/lib/mock-data";
 
-export type PollResponse = "yes" | "no" | "";
+export type PollResponse = "yes" | "no" | "didnt_answer" | "";
 export type SvsTeam = "team1" | "team2" | "team3" | "team4" | "fighting_elsewhere";
 export type SvsRole = "fighter" | "deputy" | "commander" | "intel_officer";
 export type SvsMode = "invading" | "defending" | "";
@@ -18,6 +18,7 @@ export interface SvsMemberEntry {
   role: SvsRole;
   locationX: number;
   locationY: number;
+  hasT10s: boolean;
 }
 
 export interface SvsPlan {
@@ -72,6 +73,7 @@ export function useSvsPlans() {
           role: e.role as SvsRole,
           locationX: e.location_x,
           locationY: e.location_y,
+          hasT10s: e.has_t10s,
         });
       }
     }
@@ -96,7 +98,11 @@ export function useSvsPlans() {
 
   async function createPlan(members: Member[]): Promise<string> {
     const now = new Date();
-    const label = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const dayOfWeek = now.getDay(); // 0=Sun, 6=Sat
+    const daysUntilSaturday = dayOfWeek === 6 ? 7 : (6 - dayOfWeek);
+    const nextSaturday = new Date(now);
+    nextSaturday.setDate(now.getDate() + daysUntilSaturday);
+    const label = nextSaturday.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
     const { data: planRow } = await supabase
       .from("svs_plans")
@@ -112,10 +118,11 @@ export function useSvsPlans() {
       name: m.name,
       power: 0,
       poll_response: "",
-      team: "team1",
+      team: "team4",
       role: "fighter",
       location_x: m.locationX ?? 0,
       location_y: m.locationY ?? 0,
+      has_t10s: false,
     }));
 
     if (entries.length > 0) {
@@ -135,6 +142,7 @@ export function useSvsPlans() {
       location_x?: number;
       location_y?: number;
       name?: string;
+      has_t10s?: boolean;
     } = {};
     if (updates.power !== undefined) dbUpdates.power = updates.power;
     if (updates.pollResponse !== undefined) dbUpdates.poll_response = updates.pollResponse;
@@ -143,6 +151,7 @@ export function useSvsPlans() {
     if (updates.locationX !== undefined) dbUpdates.location_x = updates.locationX;
     if (updates.locationY !== undefined) dbUpdates.location_y = updates.locationY;
     if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.hasT10s !== undefined) dbUpdates.has_t10s = updates.hasT10s;
 
     await supabase
       .from("svs_plan_entries")
