@@ -1,72 +1,35 @@
 
 
-# Change Log / Audit Trail
+# SvS Planning Page Fixes
 
-## What It Does
+## Changes
 
-Every time an officer or admin creates, updates, or deletes data anywhere in the app (members, events, scores, SvS plans, settings), a log entry is automatically recorded with:
-- **Who** made the change (user display name)
-- **When** it happened
-- **What table** was affected (members, event_attendance, etc.)
-- **What action** was taken (insert, update, delete)
-- **What changed** (before/after values stored as JSON)
+### 1. Auto-date plan label to next Saturday
+When creating a new plan, calculate the next upcoming Saturday and use that as the label instead of today's date.
 
-Admins get a new "Change Log" page accessible from the sidebar to browse and search the history.
+**File:** `src/hooks/use-svs-plans.ts` — update `createPlan` to compute next Saturday date for the label.
 
-## How It Works
+### 2. Add "Didn't Answer" poll option
+Add `"didnt_answer"` to the `PollResponse` type and add it as a dropdown option in the poll column.
 
-### 1. Database: `audit_log` table + trigger function
+**Files:**
+- `src/hooks/use-svs-plans.ts` — extend `PollResponse` type to include `"didnt_answer"`
+- `src/routes/svs-planning.tsx` — add "Didn't Answer" `<SelectItem>` in the poll dropdown, style it with a yellow/amber color
 
-Create a new `audit_log` table:
-- `id` (uuid), `created_at` (timestamp), `user_id` (uuid), `user_display_name` (text), `table_name` (text), `action` (text: INSERT/UPDATE/DELETE), `record_id` (text), `old_data` (jsonb, nullable), `new_data` (jsonb, nullable)
+### 3. Add "Has T10s" checkbox column
+Add a boolean `has_t10s` column to the database and display it as a checkbox in the table.
 
-Create a PostgreSQL trigger function that fires AFTER INSERT/UPDATE/DELETE on all tracked tables (`members`, `event_attendance`, `weekly_events`, `archived_members`, `svs_plans`, `svs_plan_entries`, `scoring_config`, `event_types`). The function captures the old/new row data and the current authenticated user via `auth.uid()`.
+**Migration:** `ALTER TABLE public.svs_plan_entries ADD COLUMN has_t10s boolean NOT NULL DEFAULT false;`
 
-RLS: Admins can read all logs. No one can insert/update/delete via the API (only the trigger writes rows, using `SECURITY DEFINER`).
+**Files:**
+- `src/hooks/use-svs-plans.ts` — add `hasT10s` to `SvsMemberEntry`, map to/from `has_t10s` in DB reads/writes
+- `src/routes/svs-planning.tsx` — add a "T10s" column with a Checkbox component
 
-### 2. New route: `/changelog`
+### 4. Default team to Team 4
+Change the default team from `"team1"` to `"team4"` when creating new plan entries.
 
-A simple admin-only page showing a table of recent changes with:
-- Timestamp, user name, table, action, and a collapsible detail showing old/new JSON
-- Search/filter by table name or user
-- Paginated (most recent first, 50 per page)
+**Files:**
+- `src/hooks/use-svs-plans.ts` — change `team: "team1"` to `team: "team4"` in `createPlan`
 
-### 3. Sidebar update
-
-Add "Change Log" to the nav items in `AppLayout.tsx` as an admin-only link.
-
-## Technical Details
-
-**Trigger approach** (vs. app-level logging): Using a database trigger means every change is captured automatically, even if we add new features later. No need to modify every hook or function.
-
-**User identification**: The trigger reads `auth.uid()` to get the user ID, and joins to `profiles` to store the display name at the time of the change.
-
-**Tables tracked**: members, event_attendance, weekly_events, archived_members, svs_plans, svs_plan_entries, scoring_config, event_types
-
-**Migration SQL (summary)**:
-```sql
--- audit_log table
-CREATE TABLE public.audit_log (...);
-ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
--- Admin-only read policy
-CREATE POLICY "Admins can read audit_log" ON public.audit_log
-  FOR SELECT TO authenticated USING (has_role(auth.uid(), 'admin'));
-
--- Generic trigger function (SECURITY DEFINER)
-CREATE FUNCTION public.audit_trigger_fn() RETURNS trigger ...
-  -- captures TG_TABLE_NAME, TG_OP, OLD, NEW, auth.uid(), profile lookup
-
--- Attach trigger to each tracked table
-CREATE TRIGGER audit_trigger AFTER INSERT OR UPDATE OR DELETE
-  ON public.members FOR EACH ROW EXECUTE FUNCTION public.audit_trigger_fn();
--- (repeated for each table)
-```
-
-## Implementation Steps
-
-| Step | What |
-|------|------|
-| 1 | Create migration: `audit_log` table, trigger function, triggers on 8 tables, RLS policy |
-| 2 | Create `src/routes/changelog.tsx` — admin-only page with searchable log table |
-| 3 | Add "Change Log" to sidebar nav in `AppLayout.tsx` |
+**Migration:** Also update the column default: `ALTER TABLE public.svs_plan_entries ALTER COLUMN team SET DEFAULT 'team4';`
 
