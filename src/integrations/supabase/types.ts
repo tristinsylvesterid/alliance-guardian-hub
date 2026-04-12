@@ -247,6 +247,7 @@ export type Database = {
       }
       svs_plan_entries: {
         Row: {
+          has_t10s: boolean
           id: string
           location_x: number
           location_y: number
@@ -259,6 +260,7 @@ export type Database = {
           team: string
         }
         Insert: {
+          has_t10s?: boolean
           id?: string
           location_x?: number
           location_y?: number
@@ -271,6 +273,7 @@ export type Database = {
           team?: string
         }
         Update: {
+          has_t10s?: boolean
           id?: string
           location_x?: number
           location_y?: number

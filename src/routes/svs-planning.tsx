@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ import {
   type PollResponse,
 } from "@/hooks/use-svs-plans";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Swords, Plus, ArrowUpDown, ArrowUp, ArrowDown, Shield, Target } from "lucide-react";
 
 type SortKey = "name" | "power" | "pollResponse" | "team" | "role" | "location";
@@ -215,6 +216,8 @@ function SvsPlanningPage() {
     ["role", "Role", "w-36"],
     ...(isDefending ? [["location", "Location (X / Y)", "w-40"] as [SortKey, string, string]] : []),
   ];
+
+  const hasT10sHeader = true; // always show T10s column
 
   return (
     <AppLayout>
@@ -403,6 +406,7 @@ function SvsPlanningPage() {
                             </span>
                           </TableHead>
                         ))}
+                        <TableHead className="w-16">T10s</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -425,12 +429,14 @@ function SvsPlanningPage() {
                               onValueChange={(v) => handlePollChange(entry.memberId, v === "none" ? "" : v as PollResponse)}
                             >
                               <SelectTrigger
-                                className={`w-24 h-8 ${
+                              className={`w-28 h-8 ${
                                   entry.pollResponse === "yes"
                                     ? "border-green-500 text-green-400"
                                     : entry.pollResponse === "no"
                                       ? "border-red-500 text-red-400"
-                                      : ""
+                                      : entry.pollResponse === "didnt_answer"
+                                        ? "border-amber-500 text-amber-400"
+                                        : ""
                                 }`}
                               >
                                 <SelectValue placeholder="—" />
@@ -442,6 +448,9 @@ function SvsPlanningPage() {
                                 </SelectItem>
                                 <SelectItem value="no">
                                   <span className="text-red-400 font-medium">No</span>
+                                </SelectItem>
+                                <SelectItem value="didnt_answer">
+                                  <span className="text-amber-400 font-medium">Didn't Answer</span>
                                 </SelectItem>
                               </SelectContent>
                             </Select>
@@ -502,6 +511,14 @@ function SvsPlanningPage() {
                               )}
                             </TableCell>
                           )}
+                          <TableCell className="text-center">
+                            <Checkbox
+                              checked={entry.hasT10s}
+                              onCheckedChange={(checked) =>
+                                updateEntry(selectedPlan.id, entry.memberId, { hasT10s: !!checked })
+                              }
+                            />
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
