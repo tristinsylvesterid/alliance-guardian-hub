@@ -35,6 +35,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     type: "tier",
     maxPoints: 3,
     brackets: [
+      { label: "T10 Complete", points: 3, condition: "T10C" },
       { label: "T10 started", points: 3, condition: "T10" },
       { label: "T9", points: 2, condition: "T9" },
       { label: "T8 or lower", points: 0, condition: "T8" },
