@@ -1,42 +1,71 @@
 
 
-# Plan: Connect to Lovable Cloud for Persistent Data Storage
+# Making Your App Operational and Shareable
 
-## The Problem
+Your app is already published at **https://alliance-guardian-hub.lovable.app** and publicly accessible. Here's what needs to be done to make it fully operational for your officers:
 
-Right now, all your data (members, events, SvS plans, scores) lives in JavaScript memory — it resets every time you refresh the page. To actually use the app, we need a real database.
+## What's Already Working
+- Login system with username/password
+- Your admin account (Kitty / Maroneal1)
+- Admin can create officer accounts
+- Database persistence for all data
+- App is published and publicly accessible
 
-## The Solution
+## What Needs to Be Done
 
-We'll enable **Lovable Cloud** (built-in Supabase database) and migrate all your in-memory data stores to persistent database tables.
+### 1. Fix the "Loading..." Screen Issue
+The app currently appears stuck on "Loading..." in the preview. This needs to be debugged and resolved so users can actually reach the login page. This is the top priority — nothing else matters if people can't get past this screen.
 
-## Database Tables to Create
+### 2. Bootstrap Your Admin Account
+The admin account (Kitty) was set up via an edge function, but we need to verify it actually exists in the database. If not, we'll trigger the bootstrap function to create it. Without this, you can't log in or create officer accounts.
 
-1. **members** — player profiles (name, leadership rank, metrics JSON, location coords)
-2. **event_types** — tracked event categories (AvA, SvS, Canyon Clash, custom ones)
-3. **weekly_events** — week definitions (week start date, SVS active toggle)
-4. **event_attendance** — per-member, per-week, per-event attendance status
-5. **archived_members** — archived player records with reason and timestamp
-6. **scoring_config** — metric definitions and bracket configurations
-7. **svs_plans** — SvS plan metadata (mode, opponent, week, result, capital %, notes)
-8. **svs_plan_entries** — per-member SvS plan data (power, poll response, team, role, location)
+### 3. Tighten Security (RLS Policies)
+Currently all database tables have overly permissive policies (`USING (true)`) — meaning anyone with the database URL could read/write data without being logged in. We need to replace these with proper policies that require authentication:
+- All tables: require `authenticated` role for SELECT/INSERT/UPDATE/DELETE
+- `user_roles` and `profiles`: restrict to own records (or admin access)
+- `admin`-only tables (scoring_config, event_types): restrict writes to admins
 
-## Implementation Steps
+### 4. Create Officer Accounts
+Once you can log in as Kitty, you'll use the Admin > User Management page to create accounts for your 5+ officers with usernames and passwords you assign.
 
-1. **Enable Lovable Cloud** — set up the Supabase database connection
-2. **Create migration** — define all 8 tables with proper types and foreign keys
-3. **Seed default data** — insert the default scoring metrics, event types, and brackets
-4. **Rewrite hooks** — replace every in-memory hook (`use-members`, `use-weekly-events`, `use-svs-plans`, `use-event-types`, `use-scoring-config`, `use-archived-members`) to read/write from the database using the Supabase client
-5. **Update components** — adjust any components that rely on the old data shape if needed
-6. **Add RLS policies** — since this is a shared officer tool (no individual user auth yet), we'll start with open policies and can lock it down with auth later
+### 5. Test the Full Flow
+- Log in as Kitty
+- Create an officer account
+- Log out, log in as the officer
+- Verify the officer can access events, members, rankings but NOT admin/settings pages
+- Verify AvA rank input works and updates scores
 
-## What You'll Get
+## Implementation Order
 
-- Data persists across page refreshes and sessions
-- Multiple officers can access the same data simultaneously
-- All members, events, plans, and scores stored permanently
+| Step | What | Effort |
+|------|------|--------|
+| 1 | Debug and fix Loading screen | Medium |
+| 2 | Verify/bootstrap admin account | Small |
+| 3 | Tighten RLS policies (migration) | Medium |
+| 4 | Test end-to-end | Manual |
 
-## Important Note
+## How to Share With Officers
 
-This is a significant refactor touching most hooks and several routes. We should do it in stages — tables + hooks first, then verify everything works before adding auth.
+Once the above is done, you simply:
+1. Give each officer the URL: **https://alliance-guardian-hub.lovable.app**
+2. Give them the username and password you created for them
+3. They open the link in any browser and log in
+
+No app store, no install — it's a web app that works on phone and desktop browsers.
+
+## Technical Details
+
+**RLS Migration** — Replace all `USING (true)` / `WITH CHECK (true)` policies with:
+```sql
+-- Example: members table
+CREATE POLICY "Authenticated users can read members"
+ON public.members FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Admins and officers can modify members"
+ON public.members FOR ALL TO authenticated
+USING (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'officer'))
+WITH CHECK (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'officer'));
+```
+
+**Loading screen fix** — Will investigate the SSR/auth initialization flow to ensure the login page renders immediately for unauthenticated users.
 
