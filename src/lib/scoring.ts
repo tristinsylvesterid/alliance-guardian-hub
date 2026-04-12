@@ -82,10 +82,10 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     type: "number",
     maxPoints: 3,
     brackets: [
-      { label: ">50", points: 3, min: 51 },
+      { label: ">50", points: 3, min: 50.01 },
       { label: "40-50", points: 2, min: 40, max: 50 },
-      { label: "30-39", points: 1, min: 30, max: 39 },
-      { label: "<30", points: 0, max: 29 },
+      { label: "30-39", points: 1, min: 30, max: 39.99 },
+      { label: "<30", points: 0, max: 29.99 },
     ],
   },
   {
