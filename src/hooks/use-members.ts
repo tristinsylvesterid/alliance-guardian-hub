@@ -25,6 +25,7 @@ function rowToMember(row: {
     name: row.name,
     leadershipRank: row.leadership_rank as "R4" | "R5" | undefined,
     metrics,
+    power: typeof (row as any).power === "number" ? (row as any).power : 0,
     locationX: row.location_x,
     locationY: row.location_y,
     events: {},
@@ -59,6 +60,7 @@ export function useMembers() {
       name: member.name,
       leadership_rank: member.leadershipRank || null,
       metrics: metricsJson,
+      power: member.power ?? 0,
       location_x: member.locationX ?? (typeof member.metrics.locationX === "number" ? member.metrics.locationX : 0),
       location_y: member.locationY ?? (typeof member.metrics.locationY === "number" ? member.metrics.locationY : 0),
     }).select().single();

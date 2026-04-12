@@ -116,7 +116,7 @@ export function useSvsPlans() {
       plan_id: planRow.id,
       member_id: m.id,
       name: m.name,
-      power: 0,
+      power: m.power ?? 0,
       poll_response: "",
       team: "team4",
       role: "fighter",
@@ -158,6 +158,11 @@ export function useSvsPlans() {
       .update(dbUpdates)
       .eq("plan_id", planId)
       .eq("member_id", memberId);
+
+    if (updates.power !== undefined) {
+      await supabase.from("members").update({ power: updates.power }).eq("id", memberId);
+    }
+
     await fetchPlans();
   }
 

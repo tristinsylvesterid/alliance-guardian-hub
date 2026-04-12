@@ -5,6 +5,7 @@ export interface Member {
   name: string;
   leadershipRank?: "R4" | "R5";
   metrics: Record<string, number | boolean | string>;
+  power: number;
   locationX: number;
   locationY: number;
   events: Record<string, boolean>;

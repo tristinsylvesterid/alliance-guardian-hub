@@ -44,6 +44,7 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
   const [name, setName] = useState("");
   const [leadershipRank, setLeadershipRank] = useState<"" | "R4" | "R5">("");
   const [metrics, setMetrics] = useState<Record<string, number | boolean | string>>(getDefaultMetrics());
+  const [power, setPower] = useState(0);
   const [locationX, setLocationX] = useState(0);
   const [locationY, setLocationY] = useState(0);
 
@@ -52,12 +53,14 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
       setName(member.name);
       setLeadershipRank(member.leadershipRank || "");
       setMetrics({ ...getDefaultMetrics(), ...member.metrics });
+      setPower(member.power ?? 0);
       setLocationX(member.locationX ?? 0);
       setLocationY(member.locationY ?? 0);
     } else {
       setName("");
       setLeadershipRank("");
       setMetrics(getDefaultMetrics());
+      setPower(0);
       setLocationX(0);
       setLocationY(0);
     }
@@ -74,6 +77,7 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
       name: name.trim(),
       leadershipRank: leadershipRank || undefined,
       metrics,
+      power,
       locationX,
       locationY,
       events: member?.events || {},
@@ -167,6 +171,23 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Power */}
+          <div className="space-y-1">
+            <h3 className="font-heading text-sm text-gold-muted uppercase tracking-wider">Power</h3>
+            <div className="pt-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Power (M)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={power || ""}
+                  placeholder="e.g. 150.5"
+                  onChange={(e) => setPower(parseFloat(e.target.value) || 0)}
+                />
+              </div>
             </div>
           </div>
 
