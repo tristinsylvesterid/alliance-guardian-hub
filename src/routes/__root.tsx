@@ -1,4 +1,4 @@
-import { Outlet, Link, useNavigate, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, useNavigate, useLocation, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 
@@ -81,7 +81,7 @@ function RootComponent() {
 function AuthGate() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+  const { pathname } = useLocation();
 
   useEffect(() => {
     if (!loading && !user && pathname !== "/login") {
