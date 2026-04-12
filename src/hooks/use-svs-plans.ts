@@ -112,18 +112,22 @@ export function useSvsPlans() {
 
     if (!planRow) throw new Error("Failed to create plan");
 
-    const entries = members.map((m) => ({
-      plan_id: planRow.id,
-      member_id: m.id,
-      name: m.name,
-      power: m.power ?? 0,
-      poll_response: "",
-      team: "team4",
-      role: "fighter",
-      location_x: m.locationX ?? 0,
-      location_y: m.locationY ?? 0,
-      has_t10s: false,
-    }));
+    const entries = members.map((m) => {
+      const troops = String(m.metrics?.troops ?? "").toUpperCase();
+      const hasT10s = troops === "T10C" || troops.includes("T10C");
+      return {
+        plan_id: planRow.id,
+        member_id: m.id,
+        name: m.name,
+        power: m.power ?? 0,
+        poll_response: "",
+        team: "team4",
+        role: "fighter",
+        location_x: m.locationX ?? 0,
+        location_y: m.locationY ?? 0,
+        has_t10s: hasT10s,
+      };
+    });
 
     if (entries.length > 0) {
       await supabase.from("svs_plan_entries").insert(entries);
