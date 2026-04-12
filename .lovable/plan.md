@@ -1,35 +1,40 @@
 
 
-# SvS Planning Page Fixes
+# Add Power (M) to Member Profiles with SvS Sync
 
-## Changes
+## What Changes
 
-### 1. Auto-date plan label to next Saturday
-When creating a new plan, calculate the next upcoming Saturday and use that as the label instead of today's date.
+1. **New `power` column on `members` table** — A dedicated numeric column (default 0) so Power is a first-class field on each member, separate from the scoring metrics.
 
-**File:** `src/hooks/use-svs-plans.ts` — update `createPlan` to compute next Saturday date for the label.
+2. **Member form gets a Power (M) input** — Add a number field to `MemberFormDialog.tsx` for viewing/editing power. It won't affect ranking scores.
 
-### 2. Add "Didn't Answer" poll option
-Add `"didnt_answer"` to the `PollResponse` type and add it as a dropdown option in the poll column.
+3. **SvS plan creation auto-populates power** — `createPlan` in `use-svs-plans.ts` pulls each member's `power` value instead of defaulting to 0.
 
-**Files:**
-- `src/hooks/use-svs-plans.ts` — extend `PollResponse` type to include `"didnt_answer"`
-- `src/routes/svs-planning.tsx` — add "Didn't Answer" `<SelectItem>` in the poll dropdown, style it with a yellow/amber color
+4. **Editing power in SvS syncs back to member profile** — When `updateEntry` is called with a power change, it also updates the member's `power` column in the `members` table.
 
-### 3. Add "Has T10s" checkbox column
-Add a boolean `has_t10s` column to the database and display it as a checkbox in the table.
+## Implementation Steps
 
-**Migration:** `ALTER TABLE public.svs_plan_entries ADD COLUMN has_t10s boolean NOT NULL DEFAULT false;`
+| Step | What |
+|------|------|
+| 1 | **Migration**: `ALTER TABLE public.members ADD COLUMN power numeric NOT NULL DEFAULT 0;` |
+| 2 | **`src/lib/mock-data.ts`**: Add `power: number` to `Member` interface |
+| 3 | **`src/hooks/use-members.ts`**: Map `power` in `rowToMember`, include in `saveMember` upsert |
+| 4 | **`src/components/MemberFormDialog.tsx`**: Add Power (M) number input field |
+| 5 | **`src/hooks/use-svs-plans.ts`**: In `createPlan`, use `m.power` instead of `0`. In `updateEntry`, when power changes, also update the `members` table |
 
-**Files:**
-- `src/hooks/use-svs-plans.ts` — add `hasT10s` to `SvsMemberEntry`, map to/from `has_t10s` in DB reads/writes
-- `src/routes/svs-planning.tsx` — add a "T10s" column with a Checkbox component
+## Technical Details
 
-### 4. Default team to Team 4
-Change the default team from `"team1"` to `"team4"` when creating new plan entries.
+**Migration SQL:**
+```sql
+ALTER TABLE public.members ADD COLUMN power numeric NOT NULL DEFAULT 0;
+```
 
-**Files:**
-- `src/hooks/use-svs-plans.ts` — change `team: "team1"` to `team: "team4"` in `createPlan`
+**SvS → Member sync** (in `updateEntry`):
+```typescript
+if (updates.power !== undefined) {
+  await supabase.from("members").update({ power: updates.power }).eq("id", memberId);
+}
+```
 
-**Migration:** Also update the column default: `ALTER TABLE public.svs_plan_entries ALTER COLUMN team SET DEFAULT 'team4';`
+**Member form**: Power field placed near the location coordinates section, labeled "Power (M)", number input. Not part of `metrics` — stored directly on the member row.
 
