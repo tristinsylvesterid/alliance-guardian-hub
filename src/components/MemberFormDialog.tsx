@@ -169,16 +169,23 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Input
-                      type="number"
-                      step={def.unit === "M" ? "0.01" : "1"}
-                      value={String(metrics[def.key])}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value);
-                        setMetric(def.key, isNaN(v) ? 0 : v);
-                      }}
-                      placeholder={def.unit ? `In ${def.unit}` : undefined}
-                    />
+                    <>
+                      <Input
+                        type="number"
+                        step={METRIC_HELPERS[def.key]?.step ?? "0.01"}
+                        value={String(metrics[def.key])}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          setMetric(def.key, isNaN(v) ? 0 : v);
+                        }}
+                        placeholder={def.unit ? `In ${def.unit}` : undefined}
+                      />
+                      {METRIC_HELPERS[def.key] && (
+                        <p className="text-[0.7rem] text-muted-foreground/70">
+                          {METRIC_HELPERS[def.key].helper}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               ))}
