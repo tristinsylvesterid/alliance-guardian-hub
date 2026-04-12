@@ -80,7 +80,14 @@ function RootComponent() {
 
 function AuthGate() {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+
+  useEffect(() => {
+    if (!loading && !user && pathname !== "/login") {
+      navigate({ to: "/login" });
+    }
+  }, [loading, user, pathname, navigate]);
 
   if (loading) {
     return (
@@ -95,12 +102,13 @@ function AuthGate() {
     return <Outlet />;
   }
 
-  // Redirect to login if not authenticated
+  // Not authenticated — will redirect via useEffect
   if (!user) {
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
-    }
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-muted-foreground">Redirecting…</p>
+      </div>
+    );
   }
 
   return <Outlet />;
