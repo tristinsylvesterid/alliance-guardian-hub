@@ -24,71 +24,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   const fetchRoles = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    if (error || !data) {
+    try {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+      if (data) {
+        setRoles(data.map((r) => r.role as AppRole));
+      }
+    } catch {
       setRoles([]);
-      return;
     }
-
-    setRoles(data.map((r) => r.role as AppRole));
   }, []);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("user_id", userId)
-      .single();
-    if (error || !data) {
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("user_id", userId)
+        .single();
+      if (data) {
+        setDisplayName(data.display_name || "");
+      }
+    } catch {
       setDisplayName("");
-      return;
     }
-
-    setDisplayName(data.display_name || "");
   }, []);
 
-  const applySession = useCallback((nextSession: Session | null) => {
-    const nextUser = nextSession?.user ?? null;
-
-    setSession(nextSession);
-    setUser(nextUser);
-    setLoading(false);
-
-    if (!nextUser) {
-      setRoles([]);
-      setDisplayName("");
+  useEffect(() => {
+    // Skip auth initialization during SSR
+    if (typeof window === "undefined") {
+      setLoading(false);
       return;
     }
 
-    void fetchRoles(nextUser.id);
-    void fetchProfile(nextUser.id);
-  }, [fetchProfile, fetchRoles]);
-
-  useEffect(() => {
     let isMounted = true;
 
+    // 1. Restore session from storage FIRST
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      if (!isMounted) return;
+      const u = initialSession?.user ?? null;
+      setSession(initialSession);
+      setUser(u);
+      setLoading(false);
+      setInitialized(true);
+
+      if (u) {
+        void fetchRoles(u.id);
+        void fetchProfile(u.id);
+      }
+    });
+
+    // 2. Listen for subsequent changes (sign in/out)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, nextSession) => {
         if (!isMounted) return;
-        applySession(nextSession);
+        const u = nextSession?.user ?? null;
+        setSession(nextSession);
+        setUser(u);
+        // Only clear loading if getSession hasn't resolved yet
+        if (!initialized) {
+          setLoading(false);
+          setInitialized(true);
+        }
+
+        if (u) {
+          void fetchRoles(u.id);
+          void fetchProfile(u.id);
+        } else {
+          setRoles([]);
+          setDisplayName("");
+        }
       }
     );
-
-    void supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      if (!isMounted) return;
-      applySession(initialSession);
-    });
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [applySession]);
+  }, [fetchRoles, fetchProfile, initialized]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
