@@ -1,71 +1,72 @@
 
 
-# Making Your App Operational and Shareable
+# Change Log / Audit Trail
 
-Your app is already published at **https://alliance-guardian-hub.lovable.app** and publicly accessible. Here's what needs to be done to make it fully operational for your officers:
+## What It Does
 
-## What's Already Working
-- Login system with username/password
-- Your admin account (Kitty / Maroneal1)
-- Admin can create officer accounts
-- Database persistence for all data
-- App is published and publicly accessible
+Every time an officer or admin creates, updates, or deletes data anywhere in the app (members, events, scores, SvS plans, settings), a log entry is automatically recorded with:
+- **Who** made the change (user display name)
+- **When** it happened
+- **What table** was affected (members, event_attendance, etc.)
+- **What action** was taken (insert, update, delete)
+- **What changed** (before/after values stored as JSON)
 
-## What Needs to Be Done
+Admins get a new "Change Log" page accessible from the sidebar to browse and search the history.
 
-### 1. Fix the "Loading..." Screen Issue
-The app currently appears stuck on "Loading..." in the preview. This needs to be debugged and resolved so users can actually reach the login page. This is the top priority — nothing else matters if people can't get past this screen.
+## How It Works
 
-### 2. Bootstrap Your Admin Account
-The admin account (Kitty) was set up via an edge function, but we need to verify it actually exists in the database. If not, we'll trigger the bootstrap function to create it. Without this, you can't log in or create officer accounts.
+### 1. Database: `audit_log` table + trigger function
 
-### 3. Tighten Security (RLS Policies)
-Currently all database tables have overly permissive policies (`USING (true)`) — meaning anyone with the database URL could read/write data without being logged in. We need to replace these with proper policies that require authentication:
-- All tables: require `authenticated` role for SELECT/INSERT/UPDATE/DELETE
-- `user_roles` and `profiles`: restrict to own records (or admin access)
-- `admin`-only tables (scoring_config, event_types): restrict writes to admins
+Create a new `audit_log` table:
+- `id` (uuid), `created_at` (timestamp), `user_id` (uuid), `user_display_name` (text), `table_name` (text), `action` (text: INSERT/UPDATE/DELETE), `record_id` (text), `old_data` (jsonb, nullable), `new_data` (jsonb, nullable)
 
-### 4. Create Officer Accounts
-Once you can log in as Kitty, you'll use the Admin > User Management page to create accounts for your 5+ officers with usernames and passwords you assign.
+Create a PostgreSQL trigger function that fires AFTER INSERT/UPDATE/DELETE on all tracked tables (`members`, `event_attendance`, `weekly_events`, `archived_members`, `svs_plans`, `svs_plan_entries`, `scoring_config`, `event_types`). The function captures the old/new row data and the current authenticated user via `auth.uid()`.
 
-### 5. Test the Full Flow
-- Log in as Kitty
-- Create an officer account
-- Log out, log in as the officer
-- Verify the officer can access events, members, rankings but NOT admin/settings pages
-- Verify AvA rank input works and updates scores
+RLS: Admins can read all logs. No one can insert/update/delete via the API (only the trigger writes rows, using `SECURITY DEFINER`).
 
-## Implementation Order
+### 2. New route: `/changelog`
 
-| Step | What | Effort |
-|------|------|--------|
-| 1 | Debug and fix Loading screen | Medium |
-| 2 | Verify/bootstrap admin account | Small |
-| 3 | Tighten RLS policies (migration) | Medium |
-| 4 | Test end-to-end | Manual |
+A simple admin-only page showing a table of recent changes with:
+- Timestamp, user name, table, action, and a collapsible detail showing old/new JSON
+- Search/filter by table name or user
+- Paginated (most recent first, 50 per page)
 
-## How to Share With Officers
+### 3. Sidebar update
 
-Once the above is done, you simply:
-1. Give each officer the URL: **https://alliance-guardian-hub.lovable.app**
-2. Give them the username and password you created for them
-3. They open the link in any browser and log in
-
-No app store, no install — it's a web app that works on phone and desktop browsers.
+Add "Change Log" to the nav items in `AppLayout.tsx` as an admin-only link.
 
 ## Technical Details
 
-**RLS Migration** — Replace all `USING (true)` / `WITH CHECK (true)` policies with:
-```sql
--- Example: members table
-CREATE POLICY "Authenticated users can read members"
-ON public.members FOR SELECT TO authenticated USING (true);
+**Trigger approach** (vs. app-level logging): Using a database trigger means every change is captured automatically, even if we add new features later. No need to modify every hook or function.
 
-CREATE POLICY "Admins and officers can modify members"
-ON public.members FOR ALL TO authenticated
-USING (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'officer'))
-WITH CHECK (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'officer'));
+**User identification**: The trigger reads `auth.uid()` to get the user ID, and joins to `profiles` to store the display name at the time of the change.
+
+**Tables tracked**: members, event_attendance, weekly_events, archived_members, svs_plans, svs_plan_entries, scoring_config, event_types
+
+**Migration SQL (summary)**:
+```sql
+-- audit_log table
+CREATE TABLE public.audit_log (...);
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+-- Admin-only read policy
+CREATE POLICY "Admins can read audit_log" ON public.audit_log
+  FOR SELECT TO authenticated USING (has_role(auth.uid(), 'admin'));
+
+-- Generic trigger function (SECURITY DEFINER)
+CREATE FUNCTION public.audit_trigger_fn() RETURNS trigger ...
+  -- captures TG_TABLE_NAME, TG_OP, OLD, NEW, auth.uid(), profile lookup
+
+-- Attach trigger to each tracked table
+CREATE TRIGGER audit_trigger AFTER INSERT OR UPDATE OR DELETE
+  ON public.members FOR EACH ROW EXECUTE FUNCTION public.audit_trigger_fn();
+-- (repeated for each table)
 ```
 
-**Loading screen fix** — Will investigate the SSR/auth initialization flow to ensure the login page renders immediately for unauthenticated users.
+## Implementation Steps
+
+| Step | What |
+|------|------|
+| 1 | Create migration: `audit_log` table, trigger function, triggers on 8 tables, RLS policy |
+| 2 | Create `src/routes/changelog.tsx` — admin-only page with searchable log table |
+| 3 | Add "Change Log" to sidebar nav in `AppLayout.tsx` |
 
