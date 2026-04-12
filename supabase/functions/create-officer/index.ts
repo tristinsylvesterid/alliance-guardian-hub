@@ -6,7 +6,10 @@ const corsHeaders = {
 };
 
 function usernameToEmail(username: string) {
-  return `${username.toLowerCase().trim()}@nova.local`;
+  // Strip everything except alphanumeric, dots, hyphens, underscores
+  const sanitized = username.toLowerCase().trim().replace(/[^a-z0-9._-]/g, "");
+  if (!sanitized) throw new Error("Username must contain at least one alphanumeric character");
+  return `${sanitized}@nova.local`;
 }
 
 Deno.serve(async (req) => {
