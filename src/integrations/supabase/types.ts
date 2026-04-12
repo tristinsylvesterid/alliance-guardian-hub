@@ -158,6 +158,7 @@ export type Database = {
           location_y: number
           metrics: Json
           name: string
+          power: number
           updated_at: string
         }
         Insert: {
@@ -168,6 +169,7 @@ export type Database = {
           location_y?: number
           metrics?: Json
           name: string
+          power?: number
           updated_at?: string
         }
         Update: {
@@ -178,6 +180,7 @@ export type Database = {
           location_y?: number
           metrics?: Json
           name?: string
+          power?: number
           updated_at?: string
         }
         Relationships: []
