@@ -21,6 +21,17 @@ import { Switch } from "@/components/ui/switch";
 import { METRIC_DEFINITIONS } from "@/lib/scoring";
 import type { Member } from "@/lib/mock-data";
 
+const METRIC_HELPERS: Record<string, { step: string; helper: string }> = {
+  hqLevel: { step: "1", helper: "Your headquarters level (whole number)" },
+  rallyCap: { step: "1", helper: "Max rally capacity level (whole number)" },
+  allianceRecognition: { step: "1", helper: "Research completion percentage, 0-100 (no decimals)" },
+  avaWeeklyScore: { step: "1", helper: "Your weekly rank position, 1 = best (whole number)" },
+  pcHeroes: { step: "0.01", helper: "Number of PC heroes, e.g. 50.5" },
+  techPower: { step: "0.01", helper: "In millions, e.g. 14.5" },
+  vehiclePower: { step: "0.01", helper: "In millions, e.g. 7.2" },
+  killCount: { step: "0.01", helper: "In millions, e.g. 1.5" },
+};
+
 interface MemberFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -158,16 +169,23 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Input
-                      type="number"
-                      step={def.unit === "M" ? "0.01" : "1"}
-                      value={String(metrics[def.key])}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value);
-                        setMetric(def.key, isNaN(v) ? 0 : v);
-                      }}
-                      placeholder={def.unit ? `In ${def.unit}` : undefined}
-                    />
+                    <>
+                      <Input
+                        type="number"
+                        step={METRIC_HELPERS[def.key]?.step ?? "0.01"}
+                        value={String(metrics[def.key])}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          setMetric(def.key, isNaN(v) ? 0 : v);
+                        }}
+                        placeholder={def.unit ? `In ${def.unit}` : undefined}
+                      />
+                      {METRIC_HELPERS[def.key] && (
+                        <p className="text-[0.7rem] text-muted-foreground/70">
+                          {METRIC_HELPERS[def.key].helper}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               ))}
