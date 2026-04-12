@@ -37,6 +37,7 @@ export function useWeeklyEvents() {
   const [activeWeeks, setActiveWeeks] = useState<WeeklyEventData[]>([]);
   const [archivedWeeks, setArchivedWeeks] = useState<WeeklyEventData[]>([]);
   const [attendanceCache, setAttendanceCache] = useState<Record<string, Record<string, Record<string, EventStatus>>>>({});
+  const [valueCache, setValueCache] = useState<Record<string, Record<string, Record<string, number | null>>>>({});
 
   const fetchWeeks = useCallback(async () => {
     const { data: active } = await supabase
@@ -74,12 +75,17 @@ export function useWeeklyEvents() {
     const { data } = await supabase.from("event_attendance").select("*");
     if (data) {
       const cache: Record<string, Record<string, Record<string, EventStatus>>> = {};
+      const valCache: Record<string, Record<string, Record<string, number | null>>> = {};
       for (const row of data) {
         if (!cache[row.weekly_event_id]) cache[row.weekly_event_id] = {};
         if (!cache[row.weekly_event_id][row.member_id]) cache[row.weekly_event_id][row.member_id] = {};
         cache[row.weekly_event_id][row.member_id][row.event_type_key] = row.status as EventStatus;
+        if (!valCache[row.weekly_event_id]) valCache[row.weekly_event_id] = {};
+        if (!valCache[row.weekly_event_id][row.member_id]) valCache[row.weekly_event_id][row.member_id] = {};
+        valCache[row.weekly_event_id][row.member_id][row.event_type_key] = (row as any).value ?? null;
       }
       setAttendanceCache(cache);
+      setValueCache(valCache);
     }
   }, []);
 
