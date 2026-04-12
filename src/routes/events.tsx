@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { RankBadge } from "@/components/RankBadge";
 import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
-import { calculateTotalScore, getRank } from "@/lib/scoring";
+import { calculateTotalScore, getRank, METRIC_DEFINITIONS, calculateMetricPoints } from "@/lib/scoring";
 import { Check, X, Minus, ChevronDown, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/events")({
@@ -30,10 +31,16 @@ function StatusIcon({ status }: { status: EventStatus }) {
   return <X className="inline h-4 w-4 text-destructive/60" />;
 }
 
+// Map event type keys to metric keys for auto-updating member profiles
+const EVENT_TO_METRIC: Record<string, string> = {
+  svs: "svsParticipation",
+  ava: "avaWeeklyScore",
+};
+
 function EventsPage() {
   const { members: rawMembers, updateMemberMetrics } = useMembers();
   const { eventTypes } = useEventTypes();
-  const { activeWeeks, getStatus, setStatus, toggleSvs, startNewWeek } = useWeeklyEvents();
+  const { activeWeeks, getStatus, getValue, setStatus, toggleSvs, startNewWeek } = useWeeklyEvents();
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
 
   const selectedWeek = activeWeeks.find((w) => w.weekId === selectedWeekId);
@@ -59,6 +66,23 @@ function EventsPage() {
     }
   }
 
+  async function handleRankChange(memberId: string, eventKey: string, rankValue: number | null) {
+    const status: EventStatus = rankValue !== null && rankValue > 0 ? "check" : "x";
+    await setStatus(selectedWeekId, memberId, eventKey, status, rankValue);
+
+    // Auto-update member metric
+    const metricKey = EVENT_TO_METRIC[eventKey];
+    if (metricKey) {
+      const member = rawMembers.find((m) => m.id === memberId);
+      if (member) {
+        await updateMemberMetrics(memberId, {
+          ...member.metrics,
+          [metricKey]: rankValue ?? 0,
+        });
+      }
+    }
+  }
+
   function handleSvsToggle(active: boolean) {
     toggleSvs(selectedWeekId, active);
   }
@@ -70,6 +94,9 @@ function EventsPage() {
   if (!activeWeeks.find((w) => w.weekId === selectedWeekId) && activeWeeks[0]) {
     setSelectedWeekId(activeWeeks[0].weekId);
   }
+
+  // Get AvA metric definition for displaying points
+  const avaMetric = METRIC_DEFINITIONS.find((m) => m.key === "avaWeeklyScore");
 
   return (
     <AppLayout>
@@ -101,6 +128,41 @@ function EventsPage() {
         <div className={`grid gap-4 md:grid-cols-${Math.min(eventTypes.length, 4)}`}>
           {eventTypes.map((event) => {
             const isSvsOff = event.hasSvsToggle && selectedWeek && !selectedWeek.svsActive;
+
+            if (event.inputType === "rank") {
+              // For rank events, show average rank and participation count
+              const rankedMembers = members.filter((m) => {
+                const val = getValue(selectedWeekId, m.id, event.key);
+                return val !== null && val > 0;
+              });
+              const avgRank = rankedMembers.length > 0
+                ? Math.round(rankedMembers.reduce((sum, m) => sum + (getValue(selectedWeekId, m.id, event.key) ?? 0), 0) / rankedMembers.length)
+                : 0;
+
+              return (
+                <Card key={event.key}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="font-heading text-gold">{event.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-end gap-1">
+                      <span className="text-3xl font-bold text-foreground">{rankedMembers.length}</span>
+                      <span className="pb-1 text-sm text-muted-foreground">/ {members.length} ranked</span>
+                    </div>
+                    {avgRank > 0 && (
+                      <p className="mt-1 text-xs text-muted-foreground">Avg rank: #{avgRank}</p>
+                    )}
+                    <div className="mt-2 h-2 rounded-full bg-secondary">
+                      <div
+                        className="h-2 rounded-full bg-gold transition-all"
+                        style={{ width: `${members.length ? (rankedMembers.length / members.length) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+
             const attending = isSvsOff
               ? 0
               : members.filter((m) => getStatus(selectedWeekId, m.id, event.key) === "check").length;
@@ -165,6 +227,7 @@ function EventsPage() {
                   {eventTypes.map((e) => (
                     <TableHead key={e.key} className="text-gold-muted font-heading text-center">
                       {e.name}
+                      {e.inputType === "rank" && <span className="ml-1 text-xs text-muted-foreground">(#)</span>}
                       {e.hasSvsToggle && selectedWeek && !selectedWeek.svsActive && (
                         <span className="ml-1 text-xs text-muted-foreground">(Off)</span>
                       )}
@@ -178,8 +241,49 @@ function EventsPage() {
                     <TableCell className="font-medium text-foreground">{m.name}</TableCell>
                     <TableCell><RankBadge rank={m.rank} /></TableCell>
                     {eventTypes.map((e) => {
-                      const status = getStatus(selectedWeekId, m.id, e.key);
                       const isSvsOff = e.hasSvsToggle && selectedWeek && !selectedWeek.svsActive;
+
+                      // Rank input type (e.g., AvA)
+                      if (e.inputType === "rank") {
+                        const rankVal = getValue(selectedWeekId, m.id, e.key);
+                        const points = avaMetric && rankVal ? calculateMetricPoints(avaMetric, rankVal) : 0;
+                        const canEdit = isCurrentWeek;
+
+                        return (
+                          <TableCell key={e.key} className="text-center">
+                            {canEdit ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  placeholder="—"
+                                  value={rankVal ?? ""}
+                                  onChange={(ev) => {
+                                    const v = ev.target.value === "" ? null : parseInt(ev.target.value);
+                                    handleRankChange(m.id, e.key, v);
+                                  }}
+                                  className="w-16 h-8 text-center text-sm px-1"
+                                />
+                                {rankVal !== null && rankVal > 0 && (
+                                  <span className="text-xs font-medium text-gold">{points}pt</span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-sm text-foreground">
+                                  {rankVal ? `#${rankVal}` : "—"}
+                                </span>
+                                {rankVal !== null && rankVal > 0 && (
+                                  <span className="text-xs font-medium text-gold">{points}pt</span>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                        );
+                      }
+
+                      // Standard status type
+                      const status = getStatus(selectedWeekId, m.id, e.key);
                       const canEdit = isCurrentWeek && !isSvsOff;
 
                       return (

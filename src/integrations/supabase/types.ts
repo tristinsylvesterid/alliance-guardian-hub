@@ -50,6 +50,7 @@ export type Database = {
           id: string
           member_id: string
           status: string
+          value: number | null
           weekly_event_id: string
         }
         Insert: {
@@ -57,6 +58,7 @@ export type Database = {
           id?: string
           member_id: string
           status?: string
+          value?: number | null
           weekly_event_id: string
         }
         Update: {
@@ -64,6 +66,7 @@ export type Database = {
           id?: string
           member_id?: string
           status?: string
+          value?: number | null
           weekly_event_id?: string
         }
         Relationships: [
@@ -88,6 +91,7 @@ export type Database = {
           created_at: string
           has_svs_toggle: boolean
           id: string
+          input_type: string
           key: string
           name: string
         }
@@ -95,6 +99,7 @@ export type Database = {
           created_at?: string
           has_svs_toggle?: boolean
           id?: string
+          input_type?: string
           key: string
           name: string
         }
@@ -102,6 +107,7 @@ export type Database = {
           created_at?: string
           has_svs_toggle?: boolean
           id?: string
+          input_type?: string
           key?: string
           name?: string
         }

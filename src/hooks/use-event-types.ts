@@ -5,6 +5,7 @@ export interface EventType {
   key: string;
   name: string;
   hasSvsToggle?: boolean;
+  inputType: "status" | "rank";
 }
 
 export function useEventTypes() {
@@ -17,6 +18,7 @@ export function useEventTypes() {
         key: r.key,
         name: r.name,
         hasSvsToggle: r.has_svs_toggle,
+        inputType: (r as any).input_type === "rank" ? "rank" : "status",
       })));
     }
   }, []);

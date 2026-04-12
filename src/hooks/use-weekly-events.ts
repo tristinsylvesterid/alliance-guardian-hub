@@ -37,6 +37,7 @@ export function useWeeklyEvents() {
   const [activeWeeks, setActiveWeeks] = useState<WeeklyEventData[]>([]);
   const [archivedWeeks, setArchivedWeeks] = useState<WeeklyEventData[]>([]);
   const [attendanceCache, setAttendanceCache] = useState<Record<string, Record<string, Record<string, EventStatus>>>>({});
+  const [valueCache, setValueCache] = useState<Record<string, Record<string, Record<string, number | null>>>>({});
 
   const fetchWeeks = useCallback(async () => {
     const { data: active } = await supabase
@@ -74,12 +75,17 @@ export function useWeeklyEvents() {
     const { data } = await supabase.from("event_attendance").select("*");
     if (data) {
       const cache: Record<string, Record<string, Record<string, EventStatus>>> = {};
+      const valCache: Record<string, Record<string, Record<string, number | null>>> = {};
       for (const row of data) {
         if (!cache[row.weekly_event_id]) cache[row.weekly_event_id] = {};
         if (!cache[row.weekly_event_id][row.member_id]) cache[row.weekly_event_id][row.member_id] = {};
         cache[row.weekly_event_id][row.member_id][row.event_type_key] = row.status as EventStatus;
+        if (!valCache[row.weekly_event_id]) valCache[row.weekly_event_id] = {};
+        if (!valCache[row.weekly_event_id][row.member_id]) valCache[row.weekly_event_id][row.member_id] = {};
+        valCache[row.weekly_event_id][row.member_id][row.event_type_key] = (row as any).value ?? null;
       }
       setAttendanceCache(cache);
+      setValueCache(valCache);
     }
   }, []);
 
@@ -101,11 +107,20 @@ export function useWeeklyEvents() {
     return attendanceCache[week.id]?.[memberId]?.[eventKey] ?? "x";
   }
 
-  async function setStatus(weekId: string, memberId: string, eventKey: string, status: EventStatus) {
+  function getValue(weekId: string, memberId: string, eventKey: string): number | null {
+    const all = [...activeWeeks, ...archivedWeeks];
+    const week = all.find((w) => w.weekId === weekId);
+    if (!week) return null;
+    return valueCache[week.id]?.[memberId]?.[eventKey] ?? null;
+  }
+
+  async function setStatus(weekId: string, memberId: string, eventKey: string, status: EventStatus, value?: number | null) {
     const dbId = getWeekDbId(weekId);
     if (!dbId) return;
+    const row: any = { weekly_event_id: dbId, member_id: memberId, event_type_key: eventKey, status };
+    if (value !== undefined) row.value = value;
     await supabase.from("event_attendance").upsert(
-      { weekly_event_id: dbId, member_id: memberId, event_type_key: eventKey, status },
+      row,
       { onConflict: "weekly_event_id,member_id,event_type_key" }
     );
     await fetchAttendance();
@@ -153,6 +168,7 @@ export function useWeeklyEvents() {
     archivedWeeks,
     currentWeek: activeWeeks[0] ?? null,
     getStatus,
+    getValue,
     setStatus,
     toggleSvs,
     startNewWeek,
