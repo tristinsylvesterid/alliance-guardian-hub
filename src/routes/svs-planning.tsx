@@ -406,6 +406,7 @@ function SvsPlanningPage() {
                             </span>
                           </TableHead>
                         ))}
+                        <TableHead className="w-16">T10s</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
