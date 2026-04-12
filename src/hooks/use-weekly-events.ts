@@ -107,11 +107,20 @@ export function useWeeklyEvents() {
     return attendanceCache[week.id]?.[memberId]?.[eventKey] ?? "x";
   }
 
-  async function setStatus(weekId: string, memberId: string, eventKey: string, status: EventStatus) {
+  function getValue(weekId: string, memberId: string, eventKey: string): number | null {
+    const all = [...activeWeeks, ...archivedWeeks];
+    const week = all.find((w) => w.weekId === weekId);
+    if (!week) return null;
+    return valueCache[week.id]?.[memberId]?.[eventKey] ?? null;
+  }
+
+  async function setStatus(weekId: string, memberId: string, eventKey: string, status: EventStatus, value?: number | null) {
     const dbId = getWeekDbId(weekId);
     if (!dbId) return;
+    const row: any = { weekly_event_id: dbId, member_id: memberId, event_type_key: eventKey, status };
+    if (value !== undefined) row.value = value;
     await supabase.from("event_attendance").upsert(
-      { weekly_event_id: dbId, member_id: memberId, event_type_key: eventKey, status },
+      row,
       { onConflict: "weekly_event_id,member_id,event_type_key" }
     );
     await fetchAttendance();
@@ -159,6 +168,7 @@ export function useWeeklyEvents() {
     archivedWeeks,
     currentWeek: activeWeeks[0] ?? null,
     getStatus,
+    getValue,
     setStatus,
     toggleSvs,
     startNewWeek,
