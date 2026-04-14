@@ -173,10 +173,12 @@ export function useWeeklyEvents() {
     activeWeeks,
     archivedWeeks,
     currentWeek: activeWeeks[0] ?? null,
+    currentWeekExists,
     getStatus,
     getValue,
     setStatus,
     toggleSvs,
     startNewWeek,
+    deleteWeek,
   };
 }
