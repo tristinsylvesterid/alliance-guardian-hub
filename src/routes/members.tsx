@@ -111,6 +111,7 @@ function MembersPage() {
                     <TableHead className="text-gold-muted font-heading">Name</TableHead>
                     <TableHead className="text-gold-muted font-heading">Rank</TableHead>
                     <TableHead className="text-gold-muted font-heading text-center">Score</TableHead>
+                    <TableHead className="text-gold-muted font-heading text-center whitespace-nowrap">Last Updated</TableHead>
                     {METRIC_DEFINITIONS.map((m) => (
                       <TableHead key={m.key} className="text-gold-muted font-heading text-center whitespace-nowrap text-xs">
                         {m.name}
@@ -134,6 +135,19 @@ function MembersPage() {
                       <TableCell className="font-medium text-foreground">{member.name}</TableCell>
                       <TableCell><RankBadge rank={member.rank} /></TableCell>
                       <TableCell className="text-center font-bold text-gold">{member.score}</TableCell>
+                      <TableCell className="text-center text-sm">
+                        {(() => {
+                          if (!member.updatedAt) return <span className="text-muted-foreground">—</span>;
+                          const d = new Date(member.updatedAt);
+                          const daysSince = Math.floor((Date.now() - d.getTime()) / 86400000);
+                          const formatted = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                          return (
+                            <span className={daysSince > 30 ? "text-orange-400" : "text-muted-foreground"}>
+                              {formatted}
+                            </span>
+                          );
+                        })()}
+                      </TableCell>
                       {METRIC_DEFINITIONS.map((def) => (
                         <TableCell key={def.key} className="text-center text-sm text-muted-foreground">
                           {formatValue(def.key, member.metrics[def.key])}

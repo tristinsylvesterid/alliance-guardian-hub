@@ -10,6 +10,7 @@ function rowToMember(row: {
   metrics: Json;
   location_x: number;
   location_y: number;
+  updated_at?: string;
 }): Member {
   const rawMetrics = (row.metrics && typeof row.metrics === "object" && !Array.isArray(row.metrics))
     ? row.metrics as Record<string, Json>
@@ -29,6 +30,7 @@ function rowToMember(row: {
     locationX: row.location_x,
     locationY: row.location_y,
     events: {},
+    updatedAt: row.updated_at,
   };
 }
 
