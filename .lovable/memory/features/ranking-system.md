@@ -1,14 +1,17 @@
 ---
 name: Ranking System
-description: Weighted point system with tiered brackets per metric, class-based ranks (R1-R5)
+description: Weighted point system with tiered brackets per metric, class-based ranks (R1-R5), editable thresholds stored in DB
 type: feature
 ---
 ## Rank Classes
-- R1: ≤14 total points
-- R2: 15-25 total points
-- R3: 26+ total points
+- R1: ≤14 total points (default, editable via Settings)
+- R2: 15-25 total points (default, editable via Settings)
+- R3: 26+ total points (default, editable via Settings)
 - R4: Officer (leadership override, score doesn't matter)
 - R5: Leader (leadership override, score doesn't matter)
+
+## Rank Thresholds
+Stored in `rank_thresholds` table (rank_key, min_points, max_points). Editable from Settings page. `getRank()` in scoring.ts accepts optional thresholds parameter with fallback to hardcoded defaults.
 
 ## Scoring Brackets (11 metrics, max 31 total)
 1. HQ Level: 30+=3, 28-29=2, ≤27=0
