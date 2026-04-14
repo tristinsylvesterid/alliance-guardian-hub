@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useEventTypes } from "@/hooks/use-event-types";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
+import { useRankThresholds } from "@/hooks/use-rank-thresholds";
+import { RankBadge } from "@/components/RankBadge";
+import type { Rank } from "@/lib/scoring";
 import { Plus, Trash2, Pencil, Save, X } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
