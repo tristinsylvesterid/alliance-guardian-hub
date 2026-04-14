@@ -27,10 +27,13 @@ export const Route = createFileRoute("/settings")({
 function SettingsPage() {
   const { eventTypes, addEventType, removeEventType } = useEventTypes();
   const { metrics, maxTotal, updateBracket, addBracket, removeBracket, recalcMaxPoints } = useScoringConfig();
+  const { thresholds, updateThreshold } = useRankThresholds();
 
   const [newEventName, setNewEventName] = useState("");
   const [editingMetric, setEditingMetric] = useState<string | null>(null);
   const [addEventOpen, setAddEventOpen] = useState(false);
+  const [editingThresholds, setEditingThresholds] = useState(false);
+  const [localThresholds, setLocalThresholds] = useState<Array<{ rankKey: string; minPoints: number; maxPoints: number | null }>>([]);
 
   // Local bracket edit state
   const editMetricDef = metrics.find((m) => m.key === editingMetric);
