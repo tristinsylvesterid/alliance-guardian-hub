@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useEventTypes } from "@/hooks/use-event-types";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
+import { useRankThresholds } from "@/hooks/use-rank-thresholds";
+import { RankBadge } from "@/components/RankBadge";
+import type { Rank } from "@/lib/scoring";
 import { Plus, Trash2, Pencil, Save, X } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
@@ -24,10 +27,13 @@ export const Route = createFileRoute("/settings")({
 function SettingsPage() {
   const { eventTypes, addEventType, removeEventType } = useEventTypes();
   const { metrics, maxTotal, updateBracket, addBracket, removeBracket, recalcMaxPoints } = useScoringConfig();
+  const { thresholds, updateThreshold } = useRankThresholds();
 
   const [newEventName, setNewEventName] = useState("");
   const [editingMetric, setEditingMetric] = useState<string | null>(null);
   const [addEventOpen, setAddEventOpen] = useState(false);
+  const [editingThresholds, setEditingThresholds] = useState(false);
+  const [localThresholds, setLocalThresholds] = useState<Array<{ rankKey: string; minPoints: number; maxPoints: number | null }>>([]);
 
   // Local bracket edit state
   const editMetricDef = metrics.find((m) => m.key === editingMetric);
@@ -75,7 +81,7 @@ function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-gold">Scoring Brackets</CardTitle>
-            <CardDescription>Total possible: {maxTotal} points · R1 ≤14 · R2 15-25 · R3 26+</CardDescription>
+            <CardDescription>Total possible: {maxTotal} points</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -115,6 +121,96 @@ function SettingsPage() {
                 ))}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+
+        {/* Rank Thresholds */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle className="font-heading text-gold">Rank Thresholds</CardTitle>
+              <CardDescription>Point ranges that determine each rank class</CardDescription>
+            </div>
+            {!editingThresholds ? (
+              <Button
+                variant="ghost"
+                className="text-gold-muted hover:text-gold"
+                onClick={() => {
+                  setLocalThresholds(thresholds.map(t => ({ ...t })));
+                  setEditingThresholds(true);
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" /> Edit
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={() => setEditingThresholds(false)}>
+                  <X className="mr-1 h-4 w-4" /> Cancel
+                </Button>
+                <Button
+                  className="bg-gold text-gold-foreground hover:bg-gold/90"
+                  onClick={async () => {
+                    for (const t of localThresholds) {
+                      await updateThreshold(t.rankKey, t.minPoints, t.maxPoints);
+                    }
+                    setEditingThresholds(false);
+                  }}
+                >
+                  <Save className="mr-1 h-4 w-4" /> Save
+                </Button>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {(editingThresholds ? localThresholds : thresholds).map((t, idx) => (
+                <div key={t.rankKey} className="flex items-center gap-4 rounded-lg bg-secondary/50 px-4 py-3">
+                  <RankBadge rank={t.rankKey as Rank} className="w-12 justify-center" />
+                  <div className="flex items-center gap-2 flex-1">
+                    {editingThresholds ? (
+                      <>
+                        <Input
+                          type="number"
+                          value={t.minPoints}
+                          onChange={(e) => {
+                            const updated = [...localThresholds];
+                            updated[idx] = { ...updated[idx], minPoints: parseInt(e.target.value) || 0 };
+                            setLocalThresholds(updated);
+                          }}
+                          className="w-20"
+                          placeholder="Min"
+                        />
+                        <span className="text-muted-foreground">–</span>
+                        <Input
+                          type="number"
+                          value={t.maxPoints ?? ""}
+                          onChange={(e) => {
+                            const updated = [...localThresholds];
+                            updated[idx] = { ...updated[idx], maxPoints: e.target.value === "" ? null : parseInt(e.target.value) || 0 };
+                            setLocalThresholds(updated);
+                          }}
+                          className="w-20"
+                          placeholder="∞"
+                        />
+                        <span className="text-xs text-muted-foreground">points</span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-foreground">
+                        {t.maxPoints !== null ? `${t.minPoints} – ${t.maxPoints} points` : `${t.minPoints}+ points`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-center gap-4 rounded-lg bg-secondary/30 px-4 py-3">
+                <RankBadge rank={"R4" as Rank} className="w-12 justify-center" />
+                <span className="text-sm text-muted-foreground">Officer (leadership override)</span>
+              </div>
+              <div className="flex items-center gap-4 rounded-lg bg-secondary/30 px-4 py-3">
+                <RankBadge rank={"R5" as Rank} className="w-12 justify-center" />
+                <span className="text-sm text-muted-foreground">Leader (leadership override)</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

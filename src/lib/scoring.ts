@@ -194,8 +194,23 @@ export function calculateTotalScore(metrics: Record<string, number | boolean | s
   }, 0);
 }
 
-export function getRank(totalScore: number, isLeadership?: Rank): Rank {
+export interface RankThresholdEntry {
+  rankKey: string;
+  minPoints: number;
+  maxPoints: number | null;
+}
+
+export function getRank(totalScore: number, isLeadership?: Rank, thresholds?: RankThresholdEntry[]): Rank {
   if (isLeadership === "R4" || isLeadership === "R5") return isLeadership;
+  if (thresholds && thresholds.length > 0) {
+    // Sort descending by minPoints so we match highest rank first
+    const sorted = [...thresholds].sort((a, b) => b.minPoints - a.minPoints);
+    for (const t of sorted) {
+      if (totalScore >= t.minPoints) return t.rankKey as Rank;
+    }
+    return "R1";
+  }
+  // Fallback hardcoded
   if (totalScore >= 26) return "R3";
   if (totalScore >= 15) return "R2";
   return "R1";

@@ -209,6 +209,24 @@ export type Database = {
         }
         Relationships: []
       }
+      rank_thresholds: {
+        Row: {
+          max_points: number | null
+          min_points: number
+          rank_key: string
+        }
+        Insert: {
+          max_points?: number | null
+          min_points: number
+          rank_key: string
+        }
+        Update: {
+          max_points?: number | null
+          min_points?: number
+          rank_key?: string
+        }
+        Relationships: []
+      }
       scoring_config: {
         Row: {
           brackets: Json

@@ -10,6 +10,7 @@ import { MemberFormDialog } from "@/components/MemberFormDialog";
 import { ArchiveConfirmDialog } from "@/components/ArchiveConfirmDialog";
 import { type Member } from "@/lib/mock-data";
 import { calculateTotalScore, getRank, METRIC_DEFINITIONS } from "@/lib/scoring";
+import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useMembers } from "@/hooks/use-members";
 import { Search, Plus, Pencil } from "lucide-react";
@@ -31,10 +32,11 @@ function MembersPage() {
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Member | null>(null);
   const { archiveMember } = useArchivedMembers();
+  const { thresholds } = useRankThresholds();
 
   const membersWithScores = members.map((m) => {
     const score = calculateTotalScore(m.metrics);
-    const rank = getRank(score, m.leadershipRank);
+    const rank = getRank(score, m.leadershipRank, thresholds);
     return { ...m, score, rank };
   });
 

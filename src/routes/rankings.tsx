@@ -5,6 +5,7 @@ import { RankBadge } from "@/components/RankBadge";
 import { useMembers } from "@/hooks/use-members";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
 import { calculateTotalScore, getRank, calculateMetricPoints, type Rank } from "@/lib/scoring";
+import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/rankings")({
@@ -20,10 +21,11 @@ export const Route = createFileRoute("/rankings")({
 function RankingsPage() {
   const { members } = useMembers();
   const { metrics: METRIC_DEFINITIONS, maxTotal: MAX_TOTAL_POINTS } = useScoringConfig();
+  const { thresholds } = useRankThresholds();
 
   const membersWithScores = members.map((m) => {
     const score = calculateTotalScore(m.metrics);
-    const rank = getRank(score, m.leadershipRank);
+    const rank = getRank(score, m.leadershipRank, thresholds);
     const breakdown = METRIC_DEFINITIONS.map((def) => ({
       metric: def.name,
       maxPoints: def.maxPoints,
@@ -48,13 +50,18 @@ function RankingsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-5 gap-3">
-              {[
-                { rank: "R1" as Rank, desc: "≤14 points" },
-                { rank: "R2" as Rank, desc: "15-25 points" },
-                { rank: "R3" as Rank, desc: "26+ points" },
-                { rank: "R4" as Rank, desc: "Officer (override)" },
-                { rank: "R5" as Rank, desc: "Leader (override)" },
-              ].map((r) => (
+              {(() => {
+                const r1 = thresholds.find(t => t.rankKey === "R1");
+                const r2 = thresholds.find(t => t.rankKey === "R2");
+                const r3 = thresholds.find(t => t.rankKey === "R3");
+                return [
+                  { rank: "R1" as Rank, desc: r1 ? `≤${r1.maxPoints} points` : "≤14 points" },
+                  { rank: "R2" as Rank, desc: r2 ? `${r2.minPoints}-${r2.maxPoints} points` : "15-25 points" },
+                  { rank: "R3" as Rank, desc: r3 ? `${r3.minPoints}+ points` : "26+ points" },
+                  { rank: "R4" as Rank, desc: "Officer (override)" },
+                  { rank: "R5" as Rank, desc: "Leader (override)" },
+                ];
+              })().map((r) => (
                 <div key={r.rank} className="flex flex-col items-center gap-2 rounded-lg bg-secondary/50 p-4">
                   <RankBadge rank={r.rank} className="text-sm" />
                   <span className="text-xs text-muted-foreground text-center">{r.desc}</span>
