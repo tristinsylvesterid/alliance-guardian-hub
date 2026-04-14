@@ -1,61 +1,33 @@
 
 
-# Fix Scoring Brackets + Add Helper Text to Member Form
+# Add "Last Updated" Column to Member Roster
 
-## Changes
+## What Changes
 
-### 1. Fix bracket boundaries in database
-Update `scoring_config` rows to close gaps for metrics that allow decimals. Only 4 metrics need decimal-aware boundaries: Tech Power, Vehicle Power, Kill Count, and PC Heroes. The rest (HQ Level, Rally Cap, Alliance Recognition, AvA) use whole integers and their brackets are already correct for integer values.
+A new "Last Updated" date column on the members table, showing when each member's profile was last modified. This helps officers spot stale profiles at a glance.
 
-**Data updates via insert tool:**
+## Implementation
 
-| Metric | Issue | Fix |
-|--------|-------|-----|
-| PC Heroes | ">50" has min:51, misses 50.01-50.99 | min→50.01, "<30" max→29.99, "30-39" max→39.99 |
-| Tech Power | ">15M" has min:15, ambiguous boundary with "12-15M" | Already uses 14.99 — fine. Just ensure ">15M" min stays 15.01 to not double-count 15.00. Actually min:15 with max:14.99 means 15.00 matches ">15M" ✓. Leave as-is. |
-| Vehicle Power | Same pattern — already uses .99 boundaries ✓ | No change needed |
-| Kill Count | Already uses .49/.99 boundaries ✓ | No change needed |
+The `members` table already has an `updated_at` column, and an `update_updated_at_column()` trigger function exists — but the trigger is not currently attached to the `members` table.
 
-Only **PC Heroes** actually has the gap bug. The "M" metrics already have proper decimal boundaries.
-
-**SQL updates:**
+### 1. Attach the update trigger (migration)
 ```sql
-UPDATE scoring_config SET brackets = '[
-  {"label":">50","points":3,"min":50.01},
-  {"label":"40-50","points":2,"min":40,"max":50},
-  {"label":"30-39","points":1,"min":30,"max":39.99},
-  {"label":"<30","points":0,"max":29.99}
-]'::jsonb WHERE key = 'pcHeroes';
+CREATE TRIGGER set_members_updated_at
+  BEFORE UPDATE ON public.members
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_updated_at_column();
 ```
 
-### 2. Add helper text and correct `step` per metric in MemberFormDialog
+### 2. Add `updatedAt` to the Member type
+In `src/lib/mock-data.ts`, add `updatedAt?: string` to the `Member` interface.
 
-Add a `METRIC_HELPERS` map with description text for each metric, and set the correct `step` attribute:
+### 3. Pass `updated_at` through in the hook
+In `src/hooks/use-members.ts`, add `updated_at` to `rowToMember` and map it to `updatedAt`.
 
-| Metric | step | Helper text |
-|--------|------|-------------|
-| HQ Level | 1 | "Your headquarters level (whole number)" |
-| Troops | n/a (dropdown) | — |
-| Rally Cap | 1 | "Max rally capacity level (whole number)" |
-| Alliance Recognition | 1 | "Research completion percentage, 0-100 (no decimals)" |
-| AvA Weekly Score | 1 | "Your weekly rank position, 1 = best (whole number)" |
-| PC Heroes | 0.01 | "Number of PC heroes, e.g. 50.5" |
-| Tech Power | 0.01 | "In millions, e.g. 14.5" |
-| Vehicle Power | 0.01 | "In millions, e.g. 7.2" |
-| Kill Count | 0.01 | "In millions, e.g. 1.5" |
-| SvS Participation | n/a (toggle) | — |
-| Engagement | n/a (toggle) | — |
+### 4. Show "Last Updated" column in the roster
+In `src/routes/members.tsx`, add a column after Score (before metrics) that displays the date formatted as a short date (e.g., "Apr 14, 2026"). Stale profiles (e.g., >30 days) could be shown in a dimmer/warning color for quick visual identification.
 
-Render helper text as a small muted paragraph below each input.
-
-### 3. Update hardcoded METRIC_DEFINITIONS in scoring.ts
-Fix the PC Heroes brackets in the hardcoded fallback to match the DB fix.
-
-## Implementation Steps
-
-| Step | What |
-|------|------|
-| 1 | **Data update** (insert tool): Fix PC Heroes bracket boundaries |
-| 2 | **`src/lib/scoring.ts`**: Fix PC Heroes brackets in hardcoded definitions |
-| 3 | **`src/components/MemberFormDialog.tsx`**: Add helper text map, set per-metric `step` values, render descriptions below inputs |
+## Scope
+- 1 migration (attach trigger)
+- 3 files edited: `mock-data.ts`, `use-members.ts`, `members.tsx`
 
