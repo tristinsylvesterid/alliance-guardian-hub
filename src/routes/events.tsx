@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
 import { calculateTotalScore, getRank, METRIC_DEFINITIONS, calculateMetricPoints } from "@/lib/scoring";
-import { Check, X, Minus, ChevronDown, Plus } from "lucide-react";
+import { Check, X, Minus, ChevronDown, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/events")({
   component: EventsPage,
@@ -40,7 +41,7 @@ const EVENT_TO_METRIC: Record<string, string> = {
 function EventsPage() {
   const { members: rawMembers, updateMemberMetrics } = useMembers();
   const { eventTypes } = useEventTypes();
-  const { activeWeeks, getStatus, getValue, setStatus, toggleSvs, startNewWeek } = useWeeklyEvents();
+  const { activeWeeks, getStatus, getValue, setStatus, toggleSvs, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
 
   const selectedWeek = activeWeeks.find((w) => w.weekId === selectedWeekId);
@@ -107,9 +108,42 @@ function EventsPage() {
             <p className="mt-1 text-sm text-muted-foreground">Track weekly attendance across alliance events</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button onClick={handleStartNewWeek} variant="outline" className="border-gold/30 text-gold hover:bg-gold/10">
+            <Button
+              onClick={handleStartNewWeek}
+              variant="outline"
+              className="border-gold/30 text-gold hover:bg-gold/10"
+              disabled={currentWeekExists}
+              title={currentWeekExists ? "This week already exists" : "Create event week for the current calendar week"}
+            >
               <Plus className="mr-2 h-4 w-4" /> New Week
             </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10" disabled={!selectedWeekId}>
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete Week
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this week?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete <strong>{selectedWeek?.label}</strong> and all its attendance data. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => {
+                      deleteWeek(selectedWeekId);
+                      setSelectedWeekId(activeWeeks.find(w => w.weekId !== selectedWeekId)?.weekId ?? "");
+                    }}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Select value={selectedWeekId} onValueChange={setSelectedWeekId}>
               <SelectTrigger className="w-[260px] border-border bg-card text-foreground">
                 <SelectValue placeholder="Select week" />

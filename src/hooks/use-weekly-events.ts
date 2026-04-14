@@ -133,23 +133,26 @@ export function useWeeklyEvents() {
     await fetchWeeks();
   }
 
-  async function startNewWeek() {
-    const currentNewest = activeWeeks[0];
-    let nextStart: Date;
-    if (currentNewest) {
-      const newestStart = new Date(currentNewest.weekId + "T00:00:00");
-      nextStart = new Date(newestStart);
-      nextStart.setDate(nextStart.getDate() + 7);
-    } else {
-      nextStart = getWeekStart(new Date());
-    }
+  async function deleteWeek(weekId: string) {
+    const dbId = getWeekDbId(weekId);
+    if (!dbId) return;
+    await supabase.from("event_attendance").delete().eq("weekly_event_id", dbId);
+    await supabase.from("weekly_events").delete().eq("id", dbId);
+    await fetchWeeks();
+    await fetchAttendance();
+  }
 
-    const newWeekId = formatWeekId(nextStart);
-    const label = formatWeekLabel(nextStart);
+  async function startNewWeek() {
+    const currentStart = getWeekStart(new Date());
+    const newWeekId = formatWeekId(currentStart);
+
+    // Check if this week already exists
+    const existing = [...activeWeeks, ...archivedWeeks].find(w => w.weekId === newWeekId);
+    if (existing) return;
 
     await supabase.from("weekly_events").insert({
       week_id: newWeekId,
-      label,
+      label: formatWeekLabel(currentStart),
       svs_active: true,
       is_archived: false,
     });
@@ -163,14 +166,19 @@ export function useWeeklyEvents() {
     await fetchWeeks();
   }
 
+  const currentCalendarWeekId = formatWeekId(getWeekStart(new Date()));
+  const currentWeekExists = [...activeWeeks, ...archivedWeeks].some(w => w.weekId === currentCalendarWeekId);
+
   return {
     activeWeeks,
     archivedWeeks,
     currentWeek: activeWeeks[0] ?? null,
+    currentWeekExists,
     getStatus,
     getValue,
     setStatus,
     toggleSvs,
     startNewWeek,
+    deleteWeek,
   };
 }
