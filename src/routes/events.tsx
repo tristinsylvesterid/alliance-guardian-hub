@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
 import { calculateTotalScore, getRank, METRIC_DEFINITIONS, calculateMetricPoints } from "@/lib/scoring";
-import { Check, X, Minus, ChevronDown, Plus } from "lucide-react";
+import { Check, X, Minus, ChevronDown, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/events")({
   component: EventsPage,
