@@ -14,6 +14,7 @@ import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
 import { calculateTotalScore, getRank, METRIC_DEFINITIONS, calculateMetricPoints } from "@/lib/scoring";
+import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { Check, X, Minus, ChevronDown, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/events")({
@@ -42,6 +43,7 @@ function EventsPage() {
   const { members: rawMembers, updateMemberMetrics } = useMembers();
   const { eventTypes } = useEventTypes();
   const { activeWeeks, getStatus, getValue, setStatus, toggleSvs, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
+  const { thresholds } = useRankThresholds();
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
 
   const selectedWeek = activeWeeks.find((w) => w.weekId === selectedWeekId);
@@ -49,7 +51,7 @@ function EventsPage() {
 
   const members = rawMembers.map((m) => {
     const score = calculateTotalScore(m.metrics);
-    const rank = getRank(score, m.leadershipRank);
+    const rank = getRank(score, m.leadershipRank, thresholds);
     return { ...m, score, rank };
   });
 

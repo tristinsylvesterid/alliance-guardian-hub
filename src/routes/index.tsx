@@ -6,6 +6,7 @@ import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents } from "@/hooks/use-weekly-events";
 import { calculateTotalScore, getRank, MAX_TOTAL_POINTS, type Rank } from "@/lib/scoring";
+import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { Users, Trophy, Calendar, TrendingUp, Minus } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -22,10 +23,11 @@ function Dashboard() {
   const { members: rawMembers } = useMembers();
   const { eventTypes } = useEventTypes();
   const { currentWeek, getStatus } = useWeeklyEvents();
+  const { thresholds } = useRankThresholds();
 
   const membersWithScores = rawMembers.map((m) => {
     const score = calculateTotalScore(m.metrics);
-    const rank = getRank(score, m.leadershipRank);
+    const rank = getRank(score, m.leadershipRank, thresholds);
     return { ...m, score, rank };
   }).sort((a, b) => b.score - a.score);
 
