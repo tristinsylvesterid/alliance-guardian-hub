@@ -9,6 +9,7 @@ export interface Member {
   locationX: number;
   locationY: number;
   events: Record<string, boolean>;
+  updatedAt?: string;
 }
 
 export interface ArchivedMember {
