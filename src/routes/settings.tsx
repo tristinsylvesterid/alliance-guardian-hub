@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -150,8 +151,16 @@ function SettingsPage() {
                 <Button
                   className="bg-gold text-gold-foreground hover:bg-gold/90"
                   onClick={async () => {
+                    let failed = false;
                     for (const t of localThresholds) {
-                      await updateThreshold(t.rankKey, t.minPoints, t.maxPoints);
+                      const result = await updateThreshold(t.rankKey, t.minPoints, t.maxPoints);
+                      if (result.error) {
+                        toast.error(`Failed to update ${t.rankKey}: ${result.error}`);
+                        failed = true;
+                      }
+                    }
+                    if (!failed) {
+                      toast.success("Rank thresholds updated");
                     }
                     setEditingThresholds(false);
                   }}

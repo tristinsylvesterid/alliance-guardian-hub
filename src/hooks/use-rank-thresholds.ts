@@ -38,12 +38,17 @@ export function useRankThresholds() {
     fetchThresholds();
   }, [fetchThresholds]);
 
-  async function updateThreshold(rankKey: string, minPoints: number, maxPoints: number | null) {
-    await supabase
+  async function updateThreshold(rankKey: string, minPoints: number, maxPoints: number | null): Promise<{ error: string | null }> {
+    const { error } = await supabase
       .from("rank_thresholds")
       .update({ min_points: minPoints, max_points: maxPoints })
       .eq("rank_key", rankKey);
+    if (error) {
+      console.error("Failed to update rank threshold:", error);
+      return { error: error.message };
+    }
     await fetchThresholds();
+    return { error: null };
   }
 
   return { thresholds, loading, updateThreshold };
