@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -47,19 +49,21 @@ function SettingsPage() {
     setEditingMetric(metricKey);
   }
 
-  function saveBrackets() {
+  async function saveBrackets() {
     if (!editingMetric) return;
-    // Remove all existing, add new ones
-    const def = metrics.find((m) => m.key === editingMetric);
-    if (!def) return;
-    // Apply by updating each bracket
-    for (let i = def.brackets.length - 1; i >= 0; i--) {
-      removeBracket(editingMetric, i);
+    // Single atomic update: replace all brackets and recalc max points at once
+    const maxPts = Math.max(...localBrackets.map((b) => b.points), 0);
+    const { error } = await supabase
+      .from("scoring_config")
+      .update({ brackets: localBrackets as unknown as Json, max_points: maxPts })
+      .eq("key", editingMetric);
+    if (error) {
+      toast.error(`Failed to save brackets: ${error.message}`);
+    } else {
+      toast.success("Brackets updated");
     }
-    for (const b of localBrackets) {
-      addBracket(editingMetric, b);
-    }
-    recalcMaxPoints(editingMetric);
+    // Refresh metrics from DB
+    await recalcMaxPoints(editingMetric);
     setEditingMetric(null);
   }
 
