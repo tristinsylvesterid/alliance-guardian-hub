@@ -165,16 +165,13 @@ function EventsPage() {
           </div>
         </div>
 
-        <div className={`grid gap-4 md:grid-cols-${Math.min(eventTypes.length, 4)}`}>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {eventTypes.map((event) => {
             const showToggle = event.hasSvsToggle || event.isOptional;
             const isActive = isEventActive(selectedWeekId, event.key);
             const isOff = showToggle && !isActive;
-            const isSvsOff = isOff; // kept for downstream conditionals
-
 
             if (event.inputType === "rank") {
-              // For rank events, show average rank and participation count
               const rankedMembers = members.filter((m) => {
                 const val = getValue(selectedWeekId, m.id, event.key);
                 return val !== null && val > 0;
@@ -184,78 +181,69 @@ function EventsPage() {
                 : 0;
 
               return (
-                <Card key={event.key}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="font-heading text-gold">{event.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-end gap-1">
-                      <span className="text-3xl font-bold text-foreground">{rankedMembers.length}</span>
-                      <span className="pb-1 text-sm text-muted-foreground">/ {members.length} ranked</span>
-                    </div>
-                    {avgRank > 0 && (
-                      <p className="mt-1 text-xs text-muted-foreground">Avg rank: #{avgRank}</p>
-                    )}
-                    <div className="mt-2 h-2 rounded-full bg-secondary">
-                      <div
-                        className="h-2 rounded-full bg-gold transition-all"
-                        style={{ width: `${members.length ? (rankedMembers.length / members.length) * 100 : 0}%` }}
+                <div
+                  key={event.key}
+                  className={`rounded-md border border-border bg-card px-3 py-2 ${isOff ? "opacity-50" : ""}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate font-heading text-xs text-gold">{event.name}</span>
+                    {showToggle && (
+                      <Switch
+                        checked={isActive}
+                        onCheckedChange={(v) => setEventActive(selectedWeekId, event.key, v)}
+                        disabled={!isCurrentWeek}
+                        className="scale-75"
                       />
+                    )}
+                  </div>
+                  {isOff ? (
+                    <div className="mt-0.5 text-sm text-muted-foreground">N/A</div>
+                  ) : (
+                    <div className="mt-0.5 flex items-baseline gap-2">
+                      <span className="text-base font-semibold text-foreground">
+                        {rankedMembers.length}<span className="text-muted-foreground"> / {members.length}</span>
+                      </span>
+                      {avgRank > 0 && (
+                        <span className="text-[10px] text-muted-foreground">avg #{avgRank}</span>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
               );
             }
 
-            const attending = isSvsOff
+            const attending = isOff
               ? 0
               : members.filter((m) => getStatus(selectedWeekId, m.id, event.key) === "check").length;
 
             return (
-              <Card key={event.key}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="font-heading text-gold">{event.name}</CardTitle>
-                    {showToggle && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {isActive ? "Active" : "Off"}
-                        </span>
-                        <Switch
-                          checked={isActive}
-                          onCheckedChange={(v) => setEventActive(selectedWeekId, event.key, v)}
-                          disabled={!isCurrentWeek}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </CardHeader>
-
-                <CardContent>
-                  {isSvsOff ? (
-                    <div className="flex items-center gap-2 py-2">
-                      <Minus className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">N/A this week</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-end gap-1">
-                        <span className="text-3xl font-bold text-foreground">{attending}</span>
-                        <span className="pb-1 text-sm text-muted-foreground">/ {members.length} attending</span>
-                      </div>
-                      <div className="mt-2 h-2 rounded-full bg-secondary">
-                        <div
-                          className="h-2 rounded-full bg-gold transition-all"
-                          style={{ width: `${members.length ? (attending / members.length) * 100 : 0}%` }}
-                        />
-                      </div>
-                    </>
+              <div
+                key={event.key}
+                className={`rounded-md border border-border bg-card px-3 py-2 ${isOff ? "opacity-50" : ""}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-heading text-xs text-gold">{event.name}</span>
+                  {showToggle && (
+                    <Switch
+                      checked={isActive}
+                      onCheckedChange={(v) => setEventActive(selectedWeekId, event.key, v)}
+                      disabled={!isCurrentWeek}
+                      className="scale-75"
+                    />
                   )}
-                </CardContent>
-              </Card>
+                </div>
+                {isOff ? (
+                  <div className="mt-0.5 text-sm text-muted-foreground">N/A</div>
+                ) : (
+                  <div className="mt-0.5 text-base font-semibold text-foreground">
+                    {attending}<span className="text-muted-foreground"> / {members.length}</span>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
+
 
         <Card>
           <CardHeader>
