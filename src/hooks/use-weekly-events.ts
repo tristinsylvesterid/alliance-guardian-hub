@@ -32,15 +32,17 @@ function formatWeekLabel(start: Date): string {
 }
 
 const MAX_ACTIVE_WEEKS = 4;
-
 export function useWeeklyEvents() {
   const [activeWeeks, setActiveWeeks] = useState<WeeklyEventData[]>([]);
   const [archivedWeeks, setArchivedWeeks] = useState<WeeklyEventData[]>([]);
   const [attendanceCache, setAttendanceCache] = useState<Record<string, Record<string, Record<string, EventStatus>>>>({});
   const [valueCache, setValueCache] = useState<Record<string, Record<string, Record<string, number | null>>>>({});
+  // toggleCache[weeklyEventId][eventTypeKey] = boolean (default true if absent)
+  const [toggleCache, setToggleCache] = useState<Record<string, Record<string, boolean>>>({});
 
   const fetchWeeks = useCallback(async () => {
     const { data: active } = await supabase
+
       .from("weekly_events")
       .select("*")
       .eq("is_archived", false)
@@ -89,23 +91,48 @@ export function useWeeklyEvents() {
     }
   }, []);
 
+  const fetchToggles = useCallback(async () => {
+    const { data } = await supabase.from("weekly_event_toggles").select("*");
+    if (data) {
+      const cache: Record<string, Record<string, boolean>> = {};
+      for (const row of data as any[]) {
+        if (!cache[row.weekly_event_id]) cache[row.weekly_event_id] = {};
+        cache[row.weekly_event_id][row.event_type_key] = row.is_active;
+      }
+      setToggleCache(cache);
+    }
+  }, []);
+
   useEffect(() => {
     fetchWeeks();
     fetchAttendance();
-  }, [fetchWeeks, fetchAttendance]);
+    fetchToggles();
+  }, [fetchWeeks, fetchAttendance, fetchToggles]);
+
 
   function getWeekDbId(weekId: string): string | undefined {
     const all = [...activeWeeks, ...archivedWeeks];
     return all.find((w) => w.weekId === weekId)?.id;
   }
 
+  function isEventActive(weekId: string, eventKey: string): boolean {
+    const all = [...activeWeeks, ...archivedWeeks];
+    const week = all.find((w) => w.weekId === weekId);
+    if (!week) return true;
+    // Legacy: SVS uses its own column
+    if (eventKey === "svs") return week.svsActive;
+    // Generic: default true if no row exists
+    return toggleCache[week.id]?.[eventKey] ?? true;
+  }
+
   function getStatus(weekId: string, memberId: string, eventKey: string): EventStatus {
+    if (!isEventActive(weekId, eventKey)) return "na";
     const all = [...activeWeeks, ...archivedWeeks];
     const week = all.find((w) => w.weekId === weekId);
     if (!week) return "x";
-    if (eventKey === "svs" && !week.svsActive) return "na";
     return attendanceCache[week.id]?.[memberId]?.[eventKey] ?? "x";
   }
+
 
   function getValue(weekId: string, memberId: string, eventKey: string): number | null {
     const all = [...activeWeeks, ...archivedWeeks];
@@ -133,14 +160,34 @@ export function useWeeklyEvents() {
     await fetchWeeks();
   }
 
+  async function setEventActive(weekId: string, eventKey: string, active: boolean) {
+    const dbId = getWeekDbId(weekId);
+    if (!dbId) return;
+    if (eventKey === "svs") {
+      await supabase.from("weekly_events").update({ svs_active: active }).eq("id", dbId);
+      await fetchWeeks();
+      return;
+    }
+    await supabase
+      .from("weekly_event_toggles")
+      .upsert(
+        { weekly_event_id: dbId, event_type_key: eventKey, is_active: active } as any,
+        { onConflict: "weekly_event_id,event_type_key" }
+      );
+    await fetchToggles();
+  }
+
   async function deleteWeek(weekId: string) {
     const dbId = getWeekDbId(weekId);
     if (!dbId) return;
     await supabase.from("event_attendance").delete().eq("weekly_event_id", dbId);
+    await supabase.from("weekly_event_toggles").delete().eq("weekly_event_id", dbId);
     await supabase.from("weekly_events").delete().eq("id", dbId);
     await fetchWeeks();
     await fetchAttendance();
+    await fetchToggles();
   }
+
 
   async function startNewWeek() {
     const currentStart = getWeekStart(new Date());
@@ -178,6 +225,9 @@ export function useWeeklyEvents() {
     getValue,
     setStatus,
     toggleSvs,
+    isEventActive,
+    setEventActive,
+
     startNewWeek,
     deleteWeek,
   };

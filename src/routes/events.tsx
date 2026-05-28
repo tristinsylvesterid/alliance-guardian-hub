@@ -42,9 +42,10 @@ const EVENT_TO_METRIC: Record<string, string> = {
 function EventsPage() {
   const { members: rawMembers, updateMemberMetrics } = useMembers();
   const { eventTypes } = useEventTypes();
-  const { activeWeeks, getStatus, getValue, setStatus, toggleSvs, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
+  const { activeWeeks, getStatus, getValue, setStatus, toggleSvs, isEventActive, setEventActive, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
+
 
   const selectedWeek = activeWeeks.find((w) => w.weekId === selectedWeekId);
   const isCurrentWeek = selectedWeekId === activeWeeks[0]?.weekId;
@@ -163,7 +164,11 @@ function EventsPage() {
 
         <div className={`grid gap-4 md:grid-cols-${Math.min(eventTypes.length, 4)}`}>
           {eventTypes.map((event) => {
-            const isSvsOff = event.hasSvsToggle && selectedWeek && !selectedWeek.svsActive;
+            const showToggle = event.hasSvsToggle || event.isOptional;
+            const isActive = isEventActive(selectedWeekId, event.key);
+            const isOff = showToggle && !isActive;
+            const isSvsOff = isOff; // kept for downstream conditionals
+
 
             if (event.inputType === "rank") {
               // For rank events, show average rank and participation count
@@ -208,20 +213,21 @@ function EventsPage() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="font-heading text-gold">{event.name}</CardTitle>
-                    {event.hasSvsToggle && (
+                    {showToggle && (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">
-                          {selectedWeek?.svsActive ? "Active" : "Off"}
+                          {isActive ? "Active" : "Off"}
                         </span>
                         <Switch
-                          checked={selectedWeek?.svsActive ?? false}
-                          onCheckedChange={handleSvsToggle}
+                          checked={isActive}
+                          onCheckedChange={(v) => setEventActive(selectedWeekId, event.key, v)}
                           disabled={!isCurrentWeek}
                         />
                       </div>
                     )}
                   </div>
                 </CardHeader>
+
                 <CardContent>
                   {isSvsOff ? (
                     <div className="flex items-center gap-2 py-2">
@@ -264,9 +270,10 @@ function EventsPage() {
                     <TableHead key={e.key} className="text-gold-muted font-heading text-center">
                       {e.name}
                       {e.inputType === "rank" && <span className="ml-1 text-xs text-muted-foreground">(#)</span>}
-                      {e.hasSvsToggle && selectedWeek && !selectedWeek.svsActive && (
+                      {(e.hasSvsToggle || e.isOptional) && !isEventActive(selectedWeekId, e.key) && (
                         <span className="ml-1 text-xs text-muted-foreground">(Off)</span>
                       )}
+
                     </TableHead>
                   ))}
                 </TableRow>
@@ -276,7 +283,8 @@ function EventsPage() {
                   <TableRow key={m.id} className="border-border/50">
                     <TableCell className="font-medium text-foreground">{m.name}</TableCell>
                     <TableCell><RankBadge rank={m.rank} /></TableCell>
-                    {eventTypes.map((e) => {
+                      const isSvsOff = (e.hasSvsToggle || e.isOptional) && !isEventActive(selectedWeekId, e.key);
+
                       const isSvsOff = e.hasSvsToggle && selectedWeek && !selectedWeek.svsActive;
 
                       // Rank input type (e.g., AvA)

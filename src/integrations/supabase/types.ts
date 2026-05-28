@@ -128,6 +128,7 @@ export type Database = {
           has_svs_toggle: boolean
           id: string
           input_type: string
+          is_optional: boolean
           key: string
           name: string
         }
@@ -136,6 +137,7 @@ export type Database = {
           has_svs_toggle?: boolean
           id?: string
           input_type?: string
+          is_optional?: boolean
           key: string
           name: string
         }
@@ -144,6 +146,7 @@ export type Database = {
           has_svs_toggle?: boolean
           id?: string
           input_type?: string
+          is_optional?: boolean
           key?: string
           name?: string
         }
@@ -377,6 +380,33 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_event_toggles: {
+        Row: {
+          created_at: string
+          event_type_key: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          weekly_event_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type_key: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          weekly_event_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type_key?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          weekly_event_id?: string
         }
         Relationships: []
       }
