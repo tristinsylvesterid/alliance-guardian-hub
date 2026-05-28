@@ -1,0 +1,1 @@
+UPDATE public.members SET leadership_rank = NULL WHERE leadership_rank IS NOT NULL AND leadership_rank NOT IN ('R4','R5');
