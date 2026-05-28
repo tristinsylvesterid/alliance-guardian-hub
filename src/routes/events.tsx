@@ -270,9 +270,10 @@ function EventsPage() {
                     <TableHead key={e.key} className="text-gold-muted font-heading text-center">
                       {e.name}
                       {e.inputType === "rank" && <span className="ml-1 text-xs text-muted-foreground">(#)</span>}
-                      {e.hasSvsToggle && selectedWeek && !selectedWeek.svsActive && (
+                      {(e.hasSvsToggle || e.isOptional) && !isEventActive(selectedWeekId, e.key) && (
                         <span className="ml-1 text-xs text-muted-foreground">(Off)</span>
                       )}
+
                     </TableHead>
                   ))}
                 </TableRow>
