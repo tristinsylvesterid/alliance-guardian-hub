@@ -155,6 +155,35 @@ export type Database = {
         }
         Relationships: []
       }
+      member_name_history: {
+        Row: {
+          changed_at: string
+          id: string
+          member_id: string
+          previous_name: string
+        }
+        Insert: {
+          changed_at?: string
+          id?: string
+          member_id: string
+          previous_name: string
+        }
+        Update: {
+          changed_at?: string
+          id?: string
+          member_id?: string
+          previous_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_name_history_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           created_at: string
