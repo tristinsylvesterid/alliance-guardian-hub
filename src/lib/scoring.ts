@@ -196,23 +196,24 @@ export function calculateTotalScore(metrics: Record<string, number | boolean | s
 
 export interface RankThresholdEntry {
   rankKey: string;
-  minPoints: number;
-  maxPoints: number | null;
+  minPercent: number;
+  maxPercent: number | null;
 }
 
-export function getRank(totalScore: number, isLeadership?: Rank, thresholds?: RankThresholdEntry[]): Rank {
+export function getRank(totalScore: number, isLeadership?: Rank, thresholds?: RankThresholdEntry[], maxPoints: number = MAX_TOTAL_POINTS): Rank {
   if (isLeadership === "R4" || isLeadership === "R5") return isLeadership;
+  const pct = maxPoints > 0 ? (totalScore / maxPoints) * 100 : 0;
   if (thresholds && thresholds.length > 0) {
-    // Sort descending by minPoints so we match highest rank first
-    const sorted = [...thresholds].sort((a, b) => b.minPoints - a.minPoints);
+    // Sort descending by minPercent so we match highest rank first
+    const sorted = [...thresholds].sort((a, b) => b.minPercent - a.minPercent);
     for (const t of sorted) {
-      if (totalScore >= t.minPoints) return t.rankKey as Rank;
+      if (pct >= t.minPercent) return t.rankKey as Rank;
     }
     return "R1";
   }
-  // Fallback hardcoded
-  if (totalScore >= 26) return "R3";
-  if (totalScore >= 15) return "R2";
+  // Fallback hardcoded percent thresholds
+  if (pct >= 85) return "R3";
+  if (pct >= 50) return "R2";
   return "R1";
 }
 

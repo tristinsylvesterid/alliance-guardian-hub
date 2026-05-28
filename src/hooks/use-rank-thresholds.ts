@@ -3,14 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface RankThreshold {
   rankKey: string;
-  minPoints: number;
-  maxPoints: number | null;
+  minPercent: number;
+  maxPercent: number | null;
 }
 
 const DEFAULT_THRESHOLDS: RankThreshold[] = [
-  { rankKey: "R1", minPoints: 0, maxPoints: 14 },
-  { rankKey: "R2", minPoints: 15, maxPoints: 25 },
-  { rankKey: "R3", minPoints: 26, maxPoints: null },
+  { rankKey: "R1", minPercent: 0, maxPercent: 49.99 },
+  { rankKey: "R2", minPercent: 50, maxPercent: 84.99 },
+  { rankKey: "R3", minPercent: 85, maxPercent: null },
 ];
 
 export function useRankThresholds() {
@@ -21,13 +21,13 @@ export function useRankThresholds() {
     const { data } = await supabase
       .from("rank_thresholds")
       .select("*")
-      .order("min_points");
+      .order("min_percent");
     if (data && data.length > 0) {
       setThresholds(
-        data.map((r) => ({
+        data.map((r: any) => ({
           rankKey: r.rank_key,
-          minPoints: r.min_points,
-          maxPoints: r.max_points,
+          minPercent: Number(r.min_percent),
+          maxPercent: r.max_percent === null ? null : Number(r.max_percent),
         }))
       );
     }
@@ -38,10 +38,10 @@ export function useRankThresholds() {
     fetchThresholds();
   }, [fetchThresholds]);
 
-  async function updateThreshold(rankKey: string, minPoints: number, maxPoints: number | null): Promise<{ error: string | null }> {
+  async function updateThreshold(rankKey: string, minPercent: number, maxPercent: number | null): Promise<{ error: string | null }> {
     const { error } = await supabase
       .from("rank_thresholds")
-      .update({ min_points: minPoints, max_points: maxPoints })
+      .update({ min_percent: minPercent, max_percent: maxPercent } as any)
       .eq("rank_key", rankKey);
     if (error) {
       console.error("Failed to update rank threshold:", error);

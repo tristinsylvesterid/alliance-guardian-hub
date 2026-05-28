@@ -36,7 +36,8 @@ function SettingsPage() {
   const [editingMetric, setEditingMetric] = useState<string | null>(null);
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [editingThresholds, setEditingThresholds] = useState(false);
-  const [localThresholds, setLocalThresholds] = useState<Array<{ rankKey: string; minPoints: number; maxPoints: number | null }>>([]);
+  const [localThresholds, setLocalThresholds] = useState<Array<{ rankKey: string; minPercent: number; maxPercent: number | null }>>([]);
+
 
   // Local bracket edit state
   const editMetricDef = metrics.find((m) => m.key === editingMetric);
@@ -134,7 +135,7 @@ function SettingsPage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle className="font-heading text-gold">Rank Thresholds</CardTitle>
-              <CardDescription>Point ranges that determine each rank class</CardDescription>
+              <CardDescription>Percent of available points needed for each rank (currently {maxTotal} max)</CardDescription>
             </div>
             {!editingThresholds ? (
               <Button
@@ -157,7 +158,8 @@ function SettingsPage() {
                   onClick={async () => {
                     let failed = false;
                     for (const t of localThresholds) {
-                      const result = await updateThreshold(t.rankKey, t.minPoints, t.maxPoints);
+                      const result = await updateThreshold(t.rankKey, t.minPercent, t.maxPercent);
+
                       if (result.error) {
                         toast.error(`Failed to update ${t.rankKey}: ${result.error}`);
                         failed = true;
@@ -184,34 +186,41 @@ function SettingsPage() {
                       <>
                         <Input
                           type="number"
-                          value={t.minPoints}
+                          step="0.01"
+                          min={0}
+                          max={100}
+                          value={t.minPercent}
                           onChange={(e) => {
                             const updated = [...localThresholds];
-                            updated[idx] = { ...updated[idx], minPoints: parseInt(e.target.value) || 0 };
+                            updated[idx] = { ...updated[idx], minPercent: parseFloat(e.target.value) || 0 };
                             setLocalThresholds(updated);
                           }}
-                          className="w-20"
-                          placeholder="Min"
+                          className="w-24"
+                          placeholder="Min %"
                         />
                         <span className="text-muted-foreground">–</span>
                         <Input
                           type="number"
-                          value={t.maxPoints ?? ""}
+                          step="0.01"
+                          min={0}
+                          max={100}
+                          value={t.maxPercent ?? ""}
                           onChange={(e) => {
                             const updated = [...localThresholds];
-                            updated[idx] = { ...updated[idx], maxPoints: e.target.value === "" ? null : parseInt(e.target.value) || 0 };
+                            updated[idx] = { ...updated[idx], maxPercent: e.target.value === "" ? null : parseFloat(e.target.value) || 0 };
                             setLocalThresholds(updated);
                           }}
-                          className="w-20"
+                          className="w-24"
                           placeholder="∞"
                         />
-                        <span className="text-xs text-muted-foreground">points</span>
+                        <span className="text-xs text-muted-foreground">% of weekly max</span>
                       </>
                     ) : (
                       <span className="text-sm text-foreground">
-                        {t.maxPoints !== null ? `${t.minPoints} – ${t.maxPoints} points` : `${t.minPoints}+ points`}
+                        {t.maxPercent !== null ? `${t.minPercent}% – ${t.maxPercent}%` : `${t.minPercent}%+`}
                       </span>
                     )}
+
                   </div>
                 </div>
               ))}

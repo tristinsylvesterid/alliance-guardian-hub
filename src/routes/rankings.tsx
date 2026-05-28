@@ -55,12 +55,13 @@ function RankingsPage() {
                 const r2 = thresholds.find(t => t.rankKey === "R2");
                 const r3 = thresholds.find(t => t.rankKey === "R3");
                 return [
-                  { rank: "R1" as Rank, desc: r1 ? `≤${r1.maxPoints} points` : "≤14 points" },
-                  { rank: "R2" as Rank, desc: r2 ? `${r2.minPoints}-${r2.maxPoints} points` : "15-25 points" },
-                  { rank: "R3" as Rank, desc: r3 ? `${r3.minPoints}+ points` : "26+ points" },
+                  { rank: "R1" as Rank, desc: r1 && r1.maxPercent !== null ? `≤${r1.maxPercent}%` : "<50%" },
+                  { rank: "R2" as Rank, desc: r2 && r2.maxPercent !== null ? `${r2.minPercent}–${r2.maxPercent}%` : "50–84.99%" },
+                  { rank: "R3" as Rank, desc: r3 ? `${r3.minPercent}%+` : "85%+" },
                   { rank: "R4" as Rank, desc: "Officer (override)" },
                   { rank: "R5" as Rank, desc: "Leader (override)" },
                 ];
+
               })().map((r) => (
                 <div key={r.rank} className="flex flex-col items-center gap-2 rounded-lg bg-secondary/50 p-4">
                   <RankBadge rank={r.rank} className="text-sm" />
