@@ -87,10 +87,11 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
 
   function handleSave() {
     if (!name.trim()) return;
+    const normalizedRank = leadershipRank === "R4" || leadershipRank === "R5" ? leadershipRank : undefined;
     const saved: Member = {
       id: member?.id || crypto.randomUUID(),
       name: name.trim(),
-      leadershipRank: leadershipRank || undefined,
+      leadershipRank: normalizedRank,
       metrics,
       power,
       locationX,
