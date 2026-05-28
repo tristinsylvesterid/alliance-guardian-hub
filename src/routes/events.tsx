@@ -42,9 +42,10 @@ const EVENT_TO_METRIC: Record<string, string> = {
 function EventsPage() {
   const { members: rawMembers, updateMemberMetrics } = useMembers();
   const { eventTypes } = useEventTypes();
-  const { activeWeeks, getStatus, getValue, setStatus, toggleSvs, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
+  const { activeWeeks, getStatus, getValue, setStatus, toggleSvs, isEventActive, setEventActive, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
+
 
   const selectedWeek = activeWeeks.find((w) => w.weekId === selectedWeekId);
   const isCurrentWeek = selectedWeekId === activeWeeks[0]?.weekId;
