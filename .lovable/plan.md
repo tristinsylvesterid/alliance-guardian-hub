@@ -1,57 +1,65 @@
+## Goal
 
+Track four new seasonal events plus a multi-poll response tracker, and give every event a **point weight** so each member earns a **Weekly Participation Score** that displays on the Events page and feeds into rank calculations.
 
-# Add Editable Rank Thresholds to Settings
+## Point weights
 
-## What Changes
+| Weight | Events |
+|---|---|
+| 1 pt | Level 1 Ice Pit, Poll responses (each poll = 1 pt) |
+| 2 pt | Level 2 Ice Pit, Canyon Clash |
+| 3 pt | Level 3 Ice Pit, SvS (when active), Glory War |
 
-Store the rank thresholds (R1 max, R2 min/max, R3 min) in a new `rank_thresholds` database table so they can be edited from the Settings page. Currently these are hardcoded as `R1 ≤14`, `R2 15-25`, `R3 26+` in `scoring.ts`.
+All weights editable in Settings later.
 
-## Implementation
+## What the user will see
 
-### 1. Database table (migration)
-Create a simple `rank_thresholds` table with one row per rank (R1, R2, R3). R4/R5 are leadership overrides and don't need thresholds.
+**Events page**
+- New "Weekly Participation" card at the top: bar showing total points earned across all members vs. total possible.
+- Each event card shows its **point weight** (e.g. "Glory War · 3 pt").
+- New **Polls** section under the event cards: officers click "+ Add Poll", name it (e.g. "SvS strategy"), and mark members yes/no. Each poll counts as 1 pt.
+- Attendance roster table gets a new rightmost column: **"Week Score"** showing `earned / possible` per member (e.g. `7 / 12`).
+- Optional toggles (existing feature) zero out that event's contribution to "possible" when off.
 
-```sql
-CREATE TABLE public.rank_thresholds (
-  rank_key text PRIMARY KEY,
-  min_points integer NOT NULL,
-  max_points integer -- NULL means no upper bound
-);
-INSERT INTO rank_thresholds VALUES ('R1', 0, 14), ('R2', 15, 25), ('R3', 26, NULL);
-```
-With RLS: authenticated can read, admins can modify.
+**Settings → Tracked Events**
+- Each event row gets a **point weight** input (1/2/3, editable).
+- Add the four new events seeded as Optional with their weights.
+- Add a "Polls" event type seeded as Optional (handled via the polls section, not a card).
 
-### 2. New hook: `use-rank-thresholds.ts`
-Fetches the 3 rows, exposes `thresholds` and an `updateThreshold(rankKey, minPoints, maxPoints)` function.
+**Rankings**
+- New ranking metric: **Weekly Participation Avg** — averages each member's `earned / possible` ratio across the last N weeks (default 4 = same horizon as active weeks).
+- Editable scoring brackets in Settings, e.g. 90%+ = 5 pts, 75% = 3 pts, 50% = 1 pt, <50% = 0 pts.
 
-### 3. Update `getRank` usage across the app
-Currently `getRank` is hardcoded. Two options:
-- **Option A**: Make `getRank` accept thresholds as a parameter, and pass them from the hook wherever it's called (6 files).
-- **Option B**: Create a shared hook/context that provides a `getRankForScore` function using the DB thresholds.
+## Technical details
 
-I'll go with **Option A** — it's simpler and avoids adding a new context provider. The `getRank` signature becomes:
-```typescript
-getRank(score, leadershipRank?, thresholds?)
-```
-With a fallback to the current hardcoded values if thresholds aren't provided.
+**Database migration**
+- `event_types`: add `point_weight integer NOT NULL DEFAULT 1`.
+- New table `weekly_polls(id, weekly_event_id, name, created_at)` — officers/admins write, all authed read.
+- New table `poll_responses(id, poll_id, member_id, responded boolean)` with unique `(poll_id, member_id)` — same RLS pattern.
+- Seed rows: insert Level 1/2/3 Ice Pit (weights 1/2/3), Glory War (3), and a "Polls" placeholder if needed. Update existing Canyon Clash to weight 2, SvS to weight 3.
+- Insert one new `scoring_config` row `weeklyParticipationAvg` with default brackets.
 
-### 4. Settings page UI
-Add a "Rank Thresholds" card below the Scoring Brackets card with 3 inline rows showing R1/R2/R3 and their min/max point fields, editable in place.
+**Code**
+- `use-event-types.ts`: surface `pointWeight`; add `setWeight(key, n)`.
+- New `use-weekly-polls.ts`: CRUD for polls and responses; per-week cache.
+- `lib/scoring.ts`: add helper `calculateWeeklyParticipation(memberId, weekId, eventTypes, getStatus, polls, pollResponses)` → `{earned, possible}`. Add a `weeklyParticipationAvg` metric to `METRIC_DEFINITIONS` reading from a new numeric field on members (computed and cached) — OR compute on the fly each render and feed `getRank`.
+- `members.metrics`: new optional field `weeklyParticipationAvg` (auto-recalculated when attendance changes; written via the existing `updateMemberMetrics` flow).
+- `routes/events.tsx`: render Weekly Participation card, Polls section, Week Score column, weight badges.
+- `routes/settings.tsx`: weight input column for events; new metric automatically appears in the existing brackets editor.
 
-### 5. Update Rankings page threshold display
-The Rankings page shows a static "Rank Thresholds" card — update it to use the DB values instead of hardcoded text.
+## Files to change
 
-## Files Changed
 | File | Change |
-|------|--------|
-| Migration | New `rank_thresholds` table + seed data + RLS |
-| `src/hooks/use-rank-thresholds.ts` | New hook |
-| `src/lib/scoring.ts` | `getRank` accepts optional thresholds param |
-| `src/routes/settings.tsx` | Add threshold editor card |
-| `src/routes/rankings.tsx` | Use DB thresholds |
-| `src/routes/index.tsx` | Pass thresholds to `getRank` |
-| `src/routes/members.tsx` | Pass thresholds to `getRank` |
-| `src/routes/events.tsx` | Pass thresholds to `getRank` |
-| `src/routes/event-archive.tsx` | Pass thresholds to `getRank` |
-| `src/routes/archive.tsx` | Pass thresholds to `getRank` |
+|---|---|
+| `supabase/migrations/...` | Add column + 2 new tables + seed data |
+| `src/hooks/use-event-types.ts` | Expose & edit pointWeight |
+| `src/hooks/use-weekly-polls.ts` | New — polls CRUD |
+| `src/hooks/use-weekly-events.ts` | Recompute weekly score on attendance write |
+| `src/lib/scoring.ts` | Weekly participation calc + new metric definition |
+| `src/routes/events.tsx` | Participation card, Polls section, Week Score column |
+| `src/routes/settings.tsx` | Point weight input per event row |
+| `src/routes/rankings.tsx` | Display new metric (auto via existing loop) |
 
+## Out of scope (for this round)
+- Backfilling weekly participation for archived weeks (will compute going forward; archived weeks still display correctly from their stored attendance).
+- Per-poll point weights (every poll = 1 pt).
