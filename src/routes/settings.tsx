@@ -136,8 +136,6 @@ function SettingsPage() {
             <div>
               <CardTitle className="font-heading text-gold">Rank Thresholds</CardTitle>
               <CardDescription>Percent of available points needed for each rank (currently {maxTotal} max)</CardDescription>
-
-              <CardDescription>Point ranges that determine each rank class</CardDescription>
             </div>
             {!editingThresholds ? (
               <Button
