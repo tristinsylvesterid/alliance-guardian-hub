@@ -42,7 +42,16 @@ const EVENT_TO_METRIC: Record<string, string> = {
 
 function EventsPage() {
   const { members: rawMembers, updateMemberMetrics } = useMembers();
-  const { eventTypes } = useEventTypes();
+  const { eventTypes: rawEventTypes } = useEventTypes();
+  const EVENT_ORDER = ["ice_pit_1", "glory_war", "ice_pit_2", "ice_pit_3", "svs", "ava"];
+  const eventTypes = [...rawEventTypes].sort((a, b) => {
+    const ai = EVENT_ORDER.indexOf(a.key);
+    const bi = EVENT_ORDER.indexOf(b.key);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
   const { activeWeeks, getStatus, getValue, setStatus, toggleSvs, isEventActive, setEventActive, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
   const { getPollsForWeek, addPoll, removePoll, getResponse, setResponse } = useWeeklyPolls();
   const { thresholds } = useRankThresholds();
