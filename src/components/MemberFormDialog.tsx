@@ -124,7 +124,7 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
             </div>
             <div className="space-y-2">
               <Label className="text-muted-foreground">Leadership Rank</Label>
-              <Select value={leadershipRank} onValueChange={(v) => setLeadershipRank(v as "" | "R4" | "R5")}>
+              <Select value={leadershipRank || "none"} onValueChange={(v) => setLeadershipRank(v as "none" | "R4" | "R5")}>
                 <SelectTrigger>
                   <SelectValue placeholder="None (scored)" />
                 </SelectTrigger>
