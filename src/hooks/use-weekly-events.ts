@@ -160,14 +160,34 @@ export function useWeeklyEvents() {
     await fetchWeeks();
   }
 
+  async function setEventActive(weekId: string, eventKey: string, active: boolean) {
+    const dbId = getWeekDbId(weekId);
+    if (!dbId) return;
+    if (eventKey === "svs") {
+      await supabase.from("weekly_events").update({ svs_active: active }).eq("id", dbId);
+      await fetchWeeks();
+      return;
+    }
+    await supabase
+      .from("weekly_event_toggles")
+      .upsert(
+        { weekly_event_id: dbId, event_type_key: eventKey, is_active: active } as any,
+        { onConflict: "weekly_event_id,event_type_key" }
+      );
+    await fetchToggles();
+  }
+
   async function deleteWeek(weekId: string) {
     const dbId = getWeekDbId(weekId);
     if (!dbId) return;
     await supabase.from("event_attendance").delete().eq("weekly_event_id", dbId);
+    await supabase.from("weekly_event_toggles").delete().eq("weekly_event_id", dbId);
     await supabase.from("weekly_events").delete().eq("id", dbId);
     await fetchWeeks();
     await fetchAttendance();
+    await fetchToggles();
   }
+
 
   async function startNewWeek() {
     const currentStart = getWeekStart(new Date());
