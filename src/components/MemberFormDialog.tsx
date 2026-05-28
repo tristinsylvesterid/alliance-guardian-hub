@@ -59,6 +59,9 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
   const [power, setPower] = useState(0);
   const [locationX, setLocationX] = useState(0);
   const [locationY, setLocationY] = useState(0);
+  const [newPrevName, setNewPrevName] = useState("");
+  const { getHistoryFor, addPreviousName, removePreviousName } = useMemberNameHistory();
+  const nameHistory = member ? getHistoryFor(member.id) : [];
 
   useEffect(() => {
     if (member) {
