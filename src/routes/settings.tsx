@@ -36,7 +36,8 @@ function SettingsPage() {
   const [editingMetric, setEditingMetric] = useState<string | null>(null);
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [editingThresholds, setEditingThresholds] = useState(false);
-  const [localThresholds, setLocalThresholds] = useState<Array<{ rankKey: string; minPoints: number; maxPoints: number | null }>>([]);
+  const [localThresholds, setLocalThresholds] = useState<Array<{ rankKey: string; minPercent: number; maxPercent: number | null }>>([]);
+
 
   // Local bracket edit state
   const editMetricDef = metrics.find((m) => m.key === editingMetric);
