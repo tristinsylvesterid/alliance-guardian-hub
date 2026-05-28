@@ -40,7 +40,9 @@ export function useWeeklyEvents() {
   // toggleCache[weeklyEventId][eventTypeKey] = boolean (default true if absent)
   const [toggleCache, setToggleCache] = useState<Record<string, Record<string, boolean>>>({});
 
+  const fetchWeeks = useCallback(async () => {
     const { data: active } = await supabase
+
       .from("weekly_events")
       .select("*")
       .eq("is_archived", false)
