@@ -273,18 +273,18 @@ export type Database = {
       }
       rank_thresholds: {
         Row: {
-          max_points: number | null
-          min_points: number
+          max_percent: number | null
+          min_percent: number
           rank_key: string
         }
         Insert: {
-          max_points?: number | null
-          min_points: number
+          max_percent?: number | null
+          min_percent: number
           rank_key: string
         }
         Update: {
-          max_points?: number | null
-          min_points?: number
+          max_percent?: number | null
+          min_percent?: number
           rank_key?: string
         }
         Relationships: []
