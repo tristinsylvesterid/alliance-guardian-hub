@@ -54,7 +54,7 @@ function getDefaultMetrics(): Record<string, number | boolean | string> {
 export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive }: MemberFormDialogProps) {
   const isEdit = !!member;
   const [name, setName] = useState("");
-  const [leadershipRank, setLeadershipRank] = useState<"" | "R4" | "R5">("");
+  const [leadershipRank, setLeadershipRank] = useState<"" | "none" | "R4" | "R5">("");
   const [metrics, setMetrics] = useState<Record<string, number | boolean | string>>(getDefaultMetrics());
   const [power, setPower] = useState(0);
   const [locationX, setLocationX] = useState(0);
