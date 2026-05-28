@@ -54,7 +54,7 @@ function getDefaultMetrics(): Record<string, number | boolean | string> {
 export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive }: MemberFormDialogProps) {
   const isEdit = !!member;
   const [name, setName] = useState("");
-  const [leadershipRank, setLeadershipRank] = useState<"" | "R4" | "R5">("");
+  const [leadershipRank, setLeadershipRank] = useState<"" | "none" | "R4" | "R5">("");
   const [metrics, setMetrics] = useState<Record<string, number | boolean | string>>(getDefaultMetrics());
   const [power, setPower] = useState(0);
   const [locationX, setLocationX] = useState(0);
@@ -87,10 +87,11 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
 
   function handleSave() {
     if (!name.trim()) return;
+    const normalizedRank = leadershipRank === "R4" || leadershipRank === "R5" ? leadershipRank : undefined;
     const saved: Member = {
       id: member?.id || crypto.randomUUID(),
       name: name.trim(),
-      leadershipRank: leadershipRank || undefined,
+      leadershipRank: normalizedRank,
       metrics,
       power,
       locationX,
@@ -123,7 +124,7 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
             </div>
             <div className="space-y-2">
               <Label className="text-muted-foreground">Leadership Rank</Label>
-              <Select value={leadershipRank} onValueChange={(v) => setLeadershipRank(v as "" | "R4" | "R5")}>
+              <Select value={leadershipRank || "none"} onValueChange={(v) => setLeadershipRank(v as "none" | "R4" | "R5")}>
                 <SelectTrigger>
                   <SelectValue placeholder="None (scored)" />
                 </SelectTrigger>
