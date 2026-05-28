@@ -245,8 +245,11 @@ function EventsPage() {
                 {isOff ? (
                   <div className="mt-0.5 text-sm text-muted-foreground">N/A</div>
                 ) : (
-                  <div className="mt-0.5 text-base font-semibold text-foreground">
-                    {attending}<span className="text-muted-foreground"> / {members.length}</span>
+                  <div className="mt-0.5 flex items-baseline gap-2">
+                    <span className="text-base font-semibold text-foreground">
+                      {attending}<span className="text-muted-foreground"> / {members.length}</span>
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">attended</span>
                   </div>
                 )}
               </div>
