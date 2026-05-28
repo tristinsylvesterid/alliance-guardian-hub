@@ -158,7 +158,8 @@ function SettingsPage() {
                   onClick={async () => {
                     let failed = false;
                     for (const t of localThresholds) {
-                      const result = await updateThreshold(t.rankKey, t.minPoints, t.maxPoints);
+                      const result = await updateThreshold(t.rankKey, t.minPercent, t.maxPercent);
+
                       if (result.error) {
                         toast.error(`Failed to update ${t.rankKey}: ${result.error}`);
                         failed = true;
