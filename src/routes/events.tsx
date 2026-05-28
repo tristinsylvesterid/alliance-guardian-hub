@@ -283,9 +283,9 @@ function EventsPage() {
                   <TableRow key={m.id} className="border-border/50">
                     <TableCell className="font-medium text-foreground">{m.name}</TableCell>
                     <TableCell><RankBadge rank={m.rank} /></TableCell>
+                    {eventTypes.map((e) => {
                       const isSvsOff = (e.hasSvsToggle || e.isOptional) && !isEventActive(selectedWeekId, e.key);
 
-                      const isSvsOff = e.hasSvsToggle && selectedWeek && !selectedWeek.svsActive;
 
                       // Rank input type (e.g., AvA)
                       if (e.inputType === "rank") {
