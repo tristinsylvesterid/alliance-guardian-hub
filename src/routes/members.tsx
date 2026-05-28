@@ -13,7 +13,9 @@ import { calculateTotalScore, getRank, METRIC_DEFINITIONS } from "@/lib/scoring"
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useMembers } from "@/hooks/use-members";
-import { Search, Plus, Pencil } from "lucide-react";
+import { useMemberNameHistory } from "@/hooks/use-member-name-history";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Search, Plus, Pencil, History } from "lucide-react";
 
 export const Route = createFileRoute("/members")({
   component: MembersPage,
@@ -33,6 +35,7 @@ function MembersPage() {
   const [archiveTarget, setArchiveTarget] = useState<Member | null>(null);
   const { archiveMember } = useArchivedMembers();
   const { thresholds } = useRankThresholds();
+  const { getHistoryFor, memberMatchesPreviousName } = useMemberNameHistory();
 
   const membersWithScores = members.map((m) => {
     const score = calculateTotalScore(m.metrics);
@@ -40,9 +43,11 @@ function MembersPage() {
     return { ...m, score, rank };
   });
 
-  const filtered = membersWithScores.filter((m) =>
-    m.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = membersWithScores.filter((m) => {
+    const q = search.toLowerCase();
+    if (!q) return true;
+    return m.name.toLowerCase().includes(q) || memberMatchesPreviousName(m.id, q);
+  });
 
   function formatValue(key: string, val: number | boolean | string) {
     if (typeof val === "boolean") return val ? "Yes" : "No";
@@ -134,7 +139,38 @@ function MembersPage() {
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
-                      <TableCell className="font-medium text-foreground">{member.name}</TableCell>
+                      <TableCell className="font-medium text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span>{member.name}</span>
+                          {(() => {
+                            const hist = getHistoryFor(member.id);
+                            if (hist.length === 0) return null;
+                            return (
+                              <TooltipProvider delayDuration={150}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-flex items-center gap-0.5 rounded border border-gold/30 bg-gold/10 px-1.5 py-0.5 text-[0.65rem] uppercase tracking-wide text-gold cursor-help">
+                                      <History className="h-3 w-3" />
+                                      aka {hist.length}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    <p className="font-heading text-xs text-gold-muted mb-1">Previously known as</p>
+                                    <ul className="space-y-0.5">
+                                      {hist.map((h) => (
+                                        <li key={h.id} className="text-xs">
+                                          <span className="text-foreground">{h.previousName}</span>
+                                          <span className="text-muted-foreground"> · {new Date(h.changedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          })()}
+                        </div>
+                      </TableCell>
                       <TableCell><RankBadge rank={member.rank} /></TableCell>
                       <TableCell className="text-center font-bold text-gold">{member.score}</TableCell>
                       <TableCell className="text-center text-sm">

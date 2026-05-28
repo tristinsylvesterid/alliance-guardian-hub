@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Archive } from "lucide-react";
+import { Archive, Trash2, Plus } from "lucide-react";
+import { useMemberNameHistory } from "@/hooks/use-member-name-history";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +59,9 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
   const [power, setPower] = useState(0);
   const [locationX, setLocationX] = useState(0);
   const [locationY, setLocationY] = useState(0);
+  const [newPrevName, setNewPrevName] = useState("");
+  const { getHistoryFor, addPreviousName, removePreviousName } = useMemberNameHistory();
+  const nameHistory = member ? getHistoryFor(member.id) : [];
 
   useEffect(() => {
     if (member) {
@@ -131,6 +135,67 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
               </Select>
             </div>
           </div>
+
+          {/* Previous Names */}
+          {isEdit && member && (
+            <div className="space-y-1">
+              <h3 className="font-heading text-sm text-gold-muted uppercase tracking-wider">Previous Names</h3>
+              <p className="text-[0.7rem] text-muted-foreground/70 pt-1">
+                Auto-captured when this member's name changes. You can also add or remove entries manually.
+              </p>
+              <div className="pt-2 space-y-2">
+                {nameHistory.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No previous names recorded.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {nameHistory.map((h) => (
+                      <li key={h.id} className="flex items-center justify-between gap-2 rounded border border-border/50 bg-background/40 px-3 py-1.5">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-sm text-foreground">{h.previousName}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(h.changedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={() => removePreviousName(h.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex items-center gap-2 pt-1">
+                  <Input
+                    value={newPrevName}
+                    onChange={(e) => setNewPrevName(e.target.value)}
+                    placeholder="Add a previous name"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newPrevName.trim()) {
+                        e.preventDefault();
+                        addPreviousName(member.id, newPrevName);
+                        setNewPrevName("");
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    className="border-gold/30 text-gold hover:bg-gold/10 gap-1"
+                    disabled={!newPrevName.trim()}
+                    onClick={async () => {
+                      await addPreviousName(member.id, newPrevName);
+                      setNewPrevName("");
+                    }}
+                  >
+                    <Plus className="h-4 w-4" /> Add
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Metrics */}
           <div className="space-y-1">
