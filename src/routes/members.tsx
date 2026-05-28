@@ -33,8 +33,8 @@ function MembersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Member | null>(null);
-  const { archiveMember } = useArchivedMembers();
   const { thresholds } = useRankThresholds();
+  const { getHistoryFor, memberMatchesPreviousName } = useMemberNameHistory();
 
   const membersWithScores = members.map((m) => {
     const score = calculateTotalScore(m.metrics);
@@ -42,9 +42,11 @@ function MembersPage() {
     return { ...m, score, rank };
   });
 
-  const filtered = membersWithScores.filter((m) =>
-    m.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = membersWithScores.filter((m) => {
+    const q = search.toLowerCase();
+    if (!q) return true;
+    return m.name.toLowerCase().includes(q) || memberMatchesPreviousName(m.id, q);
+  });
 
   function formatValue(key: string, val: number | boolean | string) {
     if (typeof val === "boolean") return val ? "Yes" : "No";
