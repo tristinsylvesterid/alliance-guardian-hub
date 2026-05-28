@@ -257,17 +257,22 @@ function EventsPage() {
           })}
         </div>
 
-        {selectedWeek && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-3">
-                <CardTitle className="font-heading text-gold">Polls — 1pt each</CardTitle>
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle className="font-heading text-gold">
+                Attendance Roster — {selectedWeek?.label ?? ""}
+              </CardTitle>
+              {selectedWeek && (
                 <div className="flex items-center gap-2">
+                  <span className="hidden text-xs uppercase tracking-wide text-muted-foreground sm:inline">
+                    Polls (1pt)
+                  </span>
                   <Input
-                    placeholder="Poll name (e.g. SvS strategy)"
+                    placeholder="New poll name"
                     value={newPollName}
                     onChange={(e) => setNewPollName(e.target.value)}
-                    className="w-64 h-9"
+                    className="w-56 h-9"
                     disabled={!isCurrentWeek}
                   />
                   <Button
@@ -283,82 +288,8 @@ function EventsPage() {
                     <Plus className="mr-1 h-4 w-4" /> Add Poll
                   </Button>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {getPollsForWeek(selectedWeek.id).length === 0 ? (
-                <p className="px-6 pb-6 text-sm text-muted-foreground">No polls yet this week. Add one above to track who responded.</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="text-gold-muted font-heading">Member</TableHead>
-                      {getPollsForWeek(selectedWeek.id).map((p) => {
-                        const count = members.filter((m) => getResponse(p.id, m.id)).length;
-                        return (
-                          <TableHead key={p.id} className="text-gold-muted font-heading text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <span>{p.name}</span>
-                              <span className="text-xs text-muted-foreground">({count}/{members.length})</span>
-                              {isCurrentWeek && (
-                                <button
-                                  type="button"
-                                  onClick={() => removePoll(p.id)}
-                                  className="ml-1 text-muted-foreground hover:text-destructive"
-                                  title="Delete poll"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </TableHead>
-                        );
-                      })}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {members.map((m) => (
-                      <TableRow key={m.id} className="border-border/50">
-                        <TableCell className="font-medium text-foreground">{m.name}</TableCell>
-                        {getPollsForWeek(selectedWeek.id).map((p) => {
-                          const responded = getResponse(p.id, m.id);
-                          return (
-                            <TableCell key={p.id} className="text-center">
-                              {isCurrentWeek ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setResponse(p.id, m.id, !responded)}
-                                  className="inline-flex items-center rounded px-2 py-1 hover:bg-accent transition-colors"
-                                >
-                                  {responded ? (
-                                    <Check className="h-4 w-4 text-gold" />
-                                  ) : (
-                                    <X className="h-4 w-4 text-destructive/60" />
-                                  )}
-                                </button>
-                              ) : responded ? (
-                                <Check className="inline h-4 w-4 text-gold" />
-                              ) : (
-                                <X className="inline h-4 w-4 text-destructive/60" />
-                              )}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
               )}
-            </CardContent>
-          </Card>
-        )}
-
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-heading text-gold">
-              Attendance Roster — {selectedWeek?.label ?? ""}
-            </CardTitle>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -373,9 +304,32 @@ function EventsPage() {
                       {(e.hasSvsToggle || e.isOptional) && !isEventActive(selectedWeekId, e.key) && (
                         <span className="ml-1 text-xs text-muted-foreground">(Off)</span>
                       )}
-
                     </TableHead>
                   ))}
+                  {selectedWeek && getPollsForWeek(selectedWeek.id).map((p, idx) => {
+                    const count = members.filter((m) => getResponse(p.id, m.id)).length;
+                    return (
+                      <TableHead
+                        key={p.id}
+                        className={`text-gold-muted font-heading text-center ${idx === 0 ? "border-l border-border/60" : ""}`}
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          <span>{p.name}</span>
+                          <span className="text-xs text-muted-foreground">({count}/{members.length})</span>
+                          {isCurrentWeek && (
+                            <button
+                              type="button"
+                              onClick={() => removePoll(p.id)}
+                              className="ml-1 text-muted-foreground hover:text-destructive"
+                              title="Delete poll"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -385,6 +339,7 @@ function EventsPage() {
                     <TableCell><RankBadge rank={m.rank} /></TableCell>
                     {eventTypes.map((e) => {
                       const isSvsOff = (e.hasSvsToggle || e.isOptional) && !isEventActive(selectedWeekId, e.key);
+
 
 
                       // Rank input type (e.g., AvA)
@@ -455,12 +410,40 @@ function EventsPage() {
                         </TableCell>
                       );
                     })}
+                    {selectedWeek && getPollsForWeek(selectedWeek.id).map((p, idx) => {
+                      const responded = getResponse(p.id, m.id);
+                      return (
+                        <TableCell
+                          key={p.id}
+                          className={`text-center ${idx === 0 ? "border-l border-border/60" : ""}`}
+                        >
+                          {isCurrentWeek ? (
+                            <button
+                              type="button"
+                              onClick={() => setResponse(p.id, m.id, !responded)}
+                              className="inline-flex items-center rounded px-2 py-1 hover:bg-accent transition-colors"
+                            >
+                              {responded ? (
+                                <Check className="h-4 w-4 text-gold" />
+                              ) : (
+                                <X className="h-4 w-4 text-destructive/60" />
+                              )}
+                            </button>
+                          ) : responded ? (
+                            <Check className="inline h-4 w-4 text-gold" />
+                          ) : (
+                            <X className="inline h-4 w-4 text-destructive/60" />
+                          )}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
+
       </div>
     </AppLayout>
   );
