@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Archive } from "lucide-react";
+import { Archive, Trash2, Plus } from "lucide-react";
+import { useMemberNameHistory } from "@/hooks/use-member-name-history";
 import {
   Dialog,
   DialogContent,
