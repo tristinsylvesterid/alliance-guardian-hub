@@ -139,7 +139,38 @@ function MembersPage() {
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
-                      <TableCell className="font-medium text-foreground">{member.name}</TableCell>
+                      <TableCell className="font-medium text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span>{member.name}</span>
+                          {(() => {
+                            const hist = getHistoryFor(member.id);
+                            if (hist.length === 0) return null;
+                            return (
+                              <TooltipProvider delayDuration={150}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-flex items-center gap-0.5 rounded border border-gold/30 bg-gold/10 px-1.5 py-0.5 text-[0.65rem] uppercase tracking-wide text-gold cursor-help">
+                                      <History className="h-3 w-3" />
+                                      aka {hist.length}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    <p className="font-heading text-xs text-gold-muted mb-1">Previously known as</p>
+                                    <ul className="space-y-0.5">
+                                      {hist.map((h) => (
+                                        <li key={h.id} className="text-xs">
+                                          <span className="text-foreground">{h.previousName}</span>
+                                          <span className="text-muted-foreground"> · {new Date(h.changedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          })()}
+                        </div>
+                      </TableCell>
                       <TableCell><RankBadge rank={member.rank} /></TableCell>
                       <TableCell className="text-center font-bold text-gold">{member.score}</TableCell>
                       <TableCell className="text-center text-sm">
