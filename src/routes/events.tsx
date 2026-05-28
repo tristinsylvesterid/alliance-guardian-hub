@@ -213,20 +213,21 @@ function EventsPage() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="font-heading text-gold">{event.name}</CardTitle>
-                    {event.hasSvsToggle && (
+                    {showToggle && (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">
-                          {selectedWeek?.svsActive ? "Active" : "Off"}
+                          {isActive ? "Active" : "Off"}
                         </span>
                         <Switch
-                          checked={selectedWeek?.svsActive ?? false}
-                          onCheckedChange={handleSvsToggle}
+                          checked={isActive}
+                          onCheckedChange={(v) => setEventActive(selectedWeekId, event.key, v)}
                           disabled={!isCurrentWeek}
                         />
                       </div>
                     )}
                   </div>
                 </CardHeader>
+
                 <CardContent>
                   {isSvsOff ? (
                     <div className="flex items-center gap-2 py-2">
