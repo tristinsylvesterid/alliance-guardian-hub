@@ -115,13 +115,24 @@ export function useWeeklyEvents() {
     return all.find((w) => w.weekId === weekId)?.id;
   }
 
+  function isEventActive(weekId: string, eventKey: string): boolean {
+    const all = [...activeWeeks, ...archivedWeeks];
+    const week = all.find((w) => w.weekId === weekId);
+    if (!week) return true;
+    // Legacy: SVS uses its own column
+    if (eventKey === "svs") return week.svsActive;
+    // Generic: default true if no row exists
+    return toggleCache[week.id]?.[eventKey] ?? true;
+  }
+
   function getStatus(weekId: string, memberId: string, eventKey: string): EventStatus {
+    if (!isEventActive(weekId, eventKey)) return "na";
     const all = [...activeWeeks, ...archivedWeeks];
     const week = all.find((w) => w.weekId === weekId);
     if (!week) return "x";
-    if (eventKey === "svs" && !week.svsActive) return "na";
     return attendanceCache[week.id]?.[memberId]?.[eventKey] ?? "x";
   }
+
 
   function getValue(weekId: string, memberId: string, eventKey: string): number | null {
     const all = [...activeWeeks, ...archivedWeeks];
