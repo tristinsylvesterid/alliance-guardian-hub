@@ -32,14 +32,14 @@ function formatWeekLabel(start: Date): string {
 }
 
 const MAX_ACTIVE_WEEKS = 4;
-
 export function useWeeklyEvents() {
   const [activeWeeks, setActiveWeeks] = useState<WeeklyEventData[]>([]);
   const [archivedWeeks, setArchivedWeeks] = useState<WeeklyEventData[]>([]);
   const [attendanceCache, setAttendanceCache] = useState<Record<string, Record<string, Record<string, EventStatus>>>>({});
   const [valueCache, setValueCache] = useState<Record<string, Record<string, Record<string, number | null>>>>({});
+  // toggleCache[weeklyEventId][eventTypeKey] = boolean (default true if absent)
+  const [toggleCache, setToggleCache] = useState<Record<string, Record<string, boolean>>>({});
 
-  const fetchWeeks = useCallback(async () => {
     const { data: active } = await supabase
       .from("weekly_events")
       .select("*")
