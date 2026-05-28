@@ -24,7 +24,7 @@ function rowToMember(row: {
   return {
     id: row.id,
     name: row.name,
-    leadershipRank: row.leadership_rank as "R4" | "R5" | undefined,
+    leadershipRank: row.leadership_rank === "R4" || row.leadership_rank === "R5" ? row.leadership_rank : undefined,
     metrics,
     power: typeof (row as any).power === "number" ? (row as any).power : 0,
     locationX: row.location_x,
