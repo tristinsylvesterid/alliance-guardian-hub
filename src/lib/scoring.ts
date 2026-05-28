@@ -217,9 +217,6 @@ export function getRank(totalScore: number, isLeadership?: Rank, thresholds?: Ra
   return "R1";
 }
 
-  return "R1";
-}
-
 export function getRankColor(rank: Rank): string {
   const colors: Record<Rank, string> = {
     R1: "text-rank-r1",
