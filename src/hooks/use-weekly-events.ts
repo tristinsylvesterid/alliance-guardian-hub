@@ -225,6 +225,9 @@ export function useWeeklyEvents() {
     getValue,
     setStatus,
     toggleSvs,
+    isEventActive,
+    setEventActive,
+
     startNewWeek,
     deleteWeek,
   };
