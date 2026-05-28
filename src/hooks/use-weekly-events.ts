@@ -91,10 +91,24 @@ export function useWeeklyEvents() {
     }
   }, []);
 
+  const fetchToggles = useCallback(async () => {
+    const { data } = await supabase.from("weekly_event_toggles").select("*");
+    if (data) {
+      const cache: Record<string, Record<string, boolean>> = {};
+      for (const row of data as any[]) {
+        if (!cache[row.weekly_event_id]) cache[row.weekly_event_id] = {};
+        cache[row.weekly_event_id][row.event_type_key] = row.is_active;
+      }
+      setToggleCache(cache);
+    }
+  }, []);
+
   useEffect(() => {
     fetchWeeks();
     fetchAttendance();
-  }, [fetchWeeks, fetchAttendance]);
+    fetchToggles();
+  }, [fetchWeeks, fetchAttendance, fetchToggles]);
+
 
   function getWeekDbId(weekId: string): string | undefined {
     const all = [...activeWeeks, ...archivedWeeks];
