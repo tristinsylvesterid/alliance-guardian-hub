@@ -186,34 +186,41 @@ function SettingsPage() {
                       <>
                         <Input
                           type="number"
-                          value={t.minPoints}
+                          step="0.01"
+                          min={0}
+                          max={100}
+                          value={t.minPercent}
                           onChange={(e) => {
                             const updated = [...localThresholds];
-                            updated[idx] = { ...updated[idx], minPoints: parseInt(e.target.value) || 0 };
+                            updated[idx] = { ...updated[idx], minPercent: parseFloat(e.target.value) || 0 };
                             setLocalThresholds(updated);
                           }}
-                          className="w-20"
-                          placeholder="Min"
+                          className="w-24"
+                          placeholder="Min %"
                         />
                         <span className="text-muted-foreground">–</span>
                         <Input
                           type="number"
-                          value={t.maxPoints ?? ""}
+                          step="0.01"
+                          min={0}
+                          max={100}
+                          value={t.maxPercent ?? ""}
                           onChange={(e) => {
                             const updated = [...localThresholds];
-                            updated[idx] = { ...updated[idx], maxPoints: e.target.value === "" ? null : parseInt(e.target.value) || 0 };
+                            updated[idx] = { ...updated[idx], maxPercent: e.target.value === "" ? null : parseFloat(e.target.value) || 0 };
                             setLocalThresholds(updated);
                           }}
-                          className="w-20"
+                          className="w-24"
                           placeholder="∞"
                         />
-                        <span className="text-xs text-muted-foreground">points</span>
+                        <span className="text-xs text-muted-foreground">% of weekly max</span>
                       </>
                     ) : (
                       <span className="text-sm text-foreground">
-                        {t.maxPoints !== null ? `${t.minPoints} – ${t.maxPoints} points` : `${t.minPoints}+ points`}
+                        {t.maxPercent !== null ? `${t.minPercent}% – ${t.maxPercent}%` : `${t.minPercent}%+`}
                       </span>
                     )}
+
                   </div>
                 </div>
               ))}
