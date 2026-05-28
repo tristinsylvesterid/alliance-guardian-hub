@@ -164,7 +164,11 @@ function EventsPage() {
 
         <div className={`grid gap-4 md:grid-cols-${Math.min(eventTypes.length, 4)}`}>
           {eventTypes.map((event) => {
-            const isSvsOff = event.hasSvsToggle && selectedWeek && !selectedWeek.svsActive;
+            const showToggle = event.hasSvsToggle || event.isOptional;
+            const isActive = isEventActive(selectedWeekId, event.key);
+            const isOff = showToggle && !isActive;
+            const isSvsOff = isOff; // kept for downstream conditionals
+
 
             if (event.inputType === "rank") {
               // For rank events, show average rank and participation count
