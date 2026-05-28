@@ -135,6 +135,8 @@ function SettingsPage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle className="font-heading text-gold">Rank Thresholds</CardTitle>
+              <CardDescription>Percent of available points needed for each rank (currently {maxTotal} max)</CardDescription>
+
               <CardDescription>Point ranges that determine each rank class</CardDescription>
             </div>
             {!editingThresholds ? (
