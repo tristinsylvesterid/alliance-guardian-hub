@@ -60,7 +60,7 @@ export function useMembers() {
     await supabase.from("members").upsert({
       id: member.id,
       name: member.name,
-      leadership_rank: member.leadershipRank || null,
+      leadership_rank: member.leadershipRank === "R4" || member.leadershipRank === "R5" ? member.leadershipRank : null,
       metrics: metricsJson,
       power: member.power ?? 0,
       location_x: member.locationX ?? (typeof member.metrics.locationX === "number" ? member.metrics.locationX : 0),
