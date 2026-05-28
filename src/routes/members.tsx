@@ -13,7 +13,9 @@ import { calculateTotalScore, getRank, METRIC_DEFINITIONS } from "@/lib/scoring"
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useMembers } from "@/hooks/use-members";
-import { Search, Plus, Pencil } from "lucide-react";
+import { useMemberNameHistory } from "@/hooks/use-member-name-history";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Search, Plus, Pencil, History } from "lucide-react";
 
 export const Route = createFileRoute("/members")({
   component: MembersPage,
