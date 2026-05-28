@@ -42,7 +42,16 @@ const EVENT_TO_METRIC: Record<string, string> = {
 
 function EventsPage() {
   const { members: rawMembers, updateMemberMetrics } = useMembers();
-  const { eventTypes } = useEventTypes();
+  const { eventTypes: rawEventTypes } = useEventTypes();
+  const EVENT_ORDER = ["ice_pit_1", "glory_war", "ice_pit_2", "ice_pit_3", "svs", "ava"];
+  const eventTypes = [...rawEventTypes].sort((a, b) => {
+    const ai = EVENT_ORDER.indexOf(a.key);
+    const bi = EVENT_ORDER.indexOf(b.key);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
   const { activeWeeks, getStatus, getValue, setStatus, toggleSvs, isEventActive, setEventActive, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
   const { getPollsForWeek, addPoll, removePoll, getResponse, setResponse } = useWeeklyPolls();
   const { thresholds } = useRankThresholds();
@@ -111,7 +120,7 @@ function EventsPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold tracking-wide text-gold">Events</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Track weekly attendance across alliance events</p>
+            <p className="mt-1 text-sm text-muted-foreground">Record who actually showed up to each weekly event</p>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -203,6 +212,7 @@ function EventsPage() {
                       <span className="text-base font-semibold text-foreground">
                         {rankedMembers.length}<span className="text-muted-foreground"> / {members.length}</span>
                       </span>
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">ranked</span>
                       {avgRank > 0 && (
                         <span className="text-[10px] text-muted-foreground">avg #{avgRank}</span>
                       )}
@@ -235,8 +245,11 @@ function EventsPage() {
                 {isOff ? (
                   <div className="mt-0.5 text-sm text-muted-foreground">N/A</div>
                 ) : (
-                  <div className="mt-0.5 text-base font-semibold text-foreground">
-                    {attending}<span className="text-muted-foreground"> / {members.length}</span>
+                  <div className="mt-0.5 flex items-baseline gap-2">
+                    <span className="text-base font-semibold text-foreground">
+                      {attending}<span className="text-muted-foreground"> / {members.length}</span>
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">attended</span>
                   </div>
                 )}
               </div>
