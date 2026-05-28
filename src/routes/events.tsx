@@ -257,6 +257,103 @@ function EventsPage() {
           })}
         </div>
 
+        {selectedWeek && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="font-heading text-gold">Polls — 1pt each</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Poll name (e.g. SvS strategy)"
+                    value={newPollName}
+                    onChange={(e) => setNewPollName(e.target.value)}
+                    className="w-64 h-9"
+                    disabled={!isCurrentWeek}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-gold/30 text-gold hover:bg-gold/10"
+                    disabled={!isCurrentWeek || !newPollName.trim()}
+                    onClick={async () => {
+                      await addPoll(selectedWeek.id, newPollName.trim());
+                      setNewPollName("");
+                    }}
+                  >
+                    <Plus className="mr-1 h-4 w-4" /> Add Poll
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {getPollsForWeek(selectedWeek.id).length === 0 ? (
+                <p className="px-6 pb-6 text-sm text-muted-foreground">No polls yet this week. Add one above to track who responded.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="text-gold-muted font-heading">Member</TableHead>
+                      {getPollsForWeek(selectedWeek.id).map((p) => {
+                        const count = members.filter((m) => getResponse(p.id, m.id)).length;
+                        return (
+                          <TableHead key={p.id} className="text-gold-muted font-heading text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <span>{p.name}</span>
+                              <span className="text-xs text-muted-foreground">({count}/{members.length})</span>
+                              {isCurrentWeek && (
+                                <button
+                                  type="button"
+                                  onClick={() => removePoll(p.id)}
+                                  className="ml-1 text-muted-foreground hover:text-destructive"
+                                  title="Delete poll"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </TableHead>
+                        );
+                      })}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {members.map((m) => (
+                      <TableRow key={m.id} className="border-border/50">
+                        <TableCell className="font-medium text-foreground">{m.name}</TableCell>
+                        {getPollsForWeek(selectedWeek.id).map((p) => {
+                          const responded = getResponse(p.id, m.id);
+                          return (
+                            <TableCell key={p.id} className="text-center">
+                              {isCurrentWeek ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setResponse(p.id, m.id, !responded)}
+                                  className="inline-flex items-center rounded px-2 py-1 hover:bg-accent transition-colors"
+                                >
+                                  {responded ? (
+                                    <Check className="h-4 w-4 text-gold" />
+                                  ) : (
+                                    <X className="h-4 w-4 text-destructive/60" />
+                                  )}
+                                </button>
+                              ) : responded ? (
+                                <Check className="inline h-4 w-4 text-gold" />
+                              ) : (
+                                <X className="inline h-4 w-4 text-destructive/60" />
+                              )}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-gold">
