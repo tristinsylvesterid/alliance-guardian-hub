@@ -212,6 +212,7 @@ function EventsPage() {
                       <span className="text-base font-semibold text-foreground">
                         {rankedMembers.length}<span className="text-muted-foreground"> / {members.length}</span>
                       </span>
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">ranked</span>
                       {avgRank > 0 && (
                         <span className="text-[10px] text-muted-foreground">avg #{avgRank}</span>
                       )}
