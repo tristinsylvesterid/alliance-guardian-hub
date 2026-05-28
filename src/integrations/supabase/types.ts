@@ -131,6 +131,7 @@ export type Database = {
           is_optional: boolean
           key: string
           name: string
+          point_weight: number
         }
         Insert: {
           created_at?: string
@@ -140,6 +141,7 @@ export type Database = {
           is_optional?: boolean
           key: string
           name: string
+          point_weight?: number
         }
         Update: {
           created_at?: string
@@ -149,6 +151,7 @@ export type Database = {
           is_optional?: boolean
           key?: string
           name?: string
+          point_weight?: number
         }
         Relationships: []
       }
@@ -184,6 +187,33 @@ export type Database = {
           metrics?: Json
           name?: string
           power?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      poll_responses: {
+        Row: {
+          created_at: string
+          id: string
+          member_id: string
+          poll_id: string
+          responded: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          member_id: string
+          poll_id: string
+          responded?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          member_id?: string
+          poll_id?: string
+          responded?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -434,6 +464,30 @@ export type Database = {
           label?: string
           svs_active?: boolean
           week_id?: string
+        }
+        Relationships: []
+      }
+      weekly_polls: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          weekly_event_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          weekly_event_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          weekly_event_id?: string
         }
         Relationships: []
       }
