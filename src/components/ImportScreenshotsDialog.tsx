@@ -254,7 +254,7 @@ export function ImportScreenshotsDialog({ members, eventTypes, onApplyStatus, on
                   className="bg-gold text-background hover:bg-gold/90"
                 >
                   {parsing ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Parsing…</>
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Parsing {progress.done}/{progress.total}…</>
                   ) : (
                     <><Sparkles className="mr-2 h-4 w-4" /> Parse {files.length || ""} {files.length === 1 ? "image" : "images"}</>
                   )}
