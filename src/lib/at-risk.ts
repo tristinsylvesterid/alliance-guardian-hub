@@ -37,7 +37,7 @@ export const RISK_INDICATORS = [
   { key: "low_score", label: "Overall score in R1 range" },
   { key: "low_troops", label: "T8 troops or lower" },
   { key: "low_hq", label: "HQ ≤27" },
-  { key: "no_engagement", label: "Not engaged" },
+  
 ] as const;
 
 export function evaluateMemberRisk(member: Member, ctx: WeekContext): RiskFlag[] {
@@ -115,16 +115,6 @@ export function evaluateMemberRisk(member: Member, ctx: WeekContext): RiskFlag[]
       key: "low_hq",
       label: "HQ ≤27",
       detail: `HQ ${hq}`,
-      severity: "low",
-    });
-  }
-
-  const engagement = m.engagement;
-  const engBool = typeof engagement === "boolean" ? engagement : engagement === "yes" || engagement === "Yes";
-  if (engagement !== undefined && !engBool) {
-    flags.push({
-      key: "no_engagement",
-      label: "Not engaged",
       severity: "low",
     });
   }

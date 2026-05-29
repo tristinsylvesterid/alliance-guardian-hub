@@ -1,0 +1,1 @@
+DELETE FROM public.scoring_config WHERE key = 'engagement';
