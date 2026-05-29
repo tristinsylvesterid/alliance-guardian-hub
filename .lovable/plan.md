@@ -1,32 +1,40 @@
 ## Goal
-On the `/events` page (or a dedicated importer), let officers upload one or more AvA rankings screenshots. The app sends them to a vision model, parses out `{rank, name, score}` rows, matches each row to an existing member, and lets the officer confirm before writing `avaWeeklyScore` (the rank number) to each member's metrics.
 
-## How it works
+Extend the existing AvA screenshot importer into a generic "Import from screenshots" flow that works for any event on the Events page. Pick an event, upload one or more screenshots, AI parses the relevant data, you review and apply.
 
-1. **Upload UI** — new "Import AvA from screenshot" button (on `/events`, in the AvA section). Accepts multiple images at once so a full ladder spanning several screenshots can be imported in one go.
-2. **Vision parsing** — a new server function `parseAvaScreenshot` calls the Lovable AI Gateway (`google/gemini-2.5-flash`, vision-capable, cheap) with a tool-call schema that forces structured JSON:
-   ```
-   { rows: [{ rank: number, name: string, score: number }] }
-   ```
-   The prompt tells the model: ignore the `[nOva]Bright mf Star` alliance tag line, read only the bold player name + rank badge + big number on the right. Multiple images = rows merged and deduped by rank.
-3. **Member matching** — client-side fuzzy match each parsed `name` against `useMembers()`:
-   - exact (case-insensitive) → auto-matched
-   - close match (Levenshtein ≤ 2 or substring) → suggested, needs confirm
-   - no match → dropdown to pick a member or skip
-4. **Review table** — modal showing every parsed row with: rank, parsed name, matched member dropdown, current AvA value → new AvA value. Officer can edit/skip rows.
-5. **Apply** — on confirm, updates each matched member's `metrics.avaWeeklyScore` to the parsed rank via existing `updateMemberMetrics`. The big "score" number from the screenshot is shown for reference only (we don't have a metric for it today).
+## Behavior per event input type
+
+- **status events** (Ice Pit 1/2/3, Glory War, Canyon Clash, SvS): screenshots are participation lists / rally rosters / kill-event leaderboards. AI extracts a list of names. Each matched member gets `status: "x"` (attended) for that event in the selected week. For SvS, the existing SvS toggle is respected.
+- **rank events** (AvA): same as today — AI extracts `{ rank, name, score }` rows; applying writes `value: rank` per member and also updates `avaWeeklyScore` on the member profile (current behavior).
+
+## UI changes
+
+- Replace the AvA-only "Import from screenshot" button in `src/routes/events.tsx` header with a single **Import from screenshots** button.
+- New `ImportScreenshotsDialog` (generalized from `AvaImportDialog`):
+  1. Step 1 — pick the event (dropdown of all `eventTypes`).
+  2. Step 2 — upload 1–10 screenshots with previews.
+  3. Step 3 — AI parse → review table:
+     - rank events: rank | parsed name | matched member (Select) | score
+     - status events: parsed name | matched member (Select) | ✓ attended toggle
+  4. Apply writes through the same `handleStatusChange` / `handleRankChange` already in `events.tsx`.
+- Keep fuzzy name matching (`src/lib/fuzzy-match.ts`) and the per-row "Skip" / "Start over" actions.
+
+## Server function changes (`src/lib/ava-import.functions.ts` → rename to `screenshot-import.functions.ts`)
+
+- One function `parseEventScreenshot({ images, eventKey, inputType })`.
+- System prompt branches on `inputType`:
+  - `rank` → return `{ rows: [{ rank, name, score }] }` (current AvA prompt).
+  - `status` → return `{ rows: [{ name }] }` — extract every player/commander name visible in the screenshots (rally participants, kill-event leaderboard names, etc.), dedupe by name.
+- Same Lovable AI Gateway model (`google/gemini-2.5-flash`), same 402/429 handling, same 10-image cap.
 
 ## Files
 
-- `src/lib/ava-import.functions.ts` (new) — `parseAvaScreenshot` server function. Accepts `{ images: string[] }` (base64 data URLs), calls Lovable AI with `tool_choice` forcing the structured-output schema, returns `{ rows: [...] }`. Handles 402/429 with friendly errors.
-- `src/components/AvaImportDialog.tsx` (new) — dialog with file picker (multi-image), preview thumbnails, loading state, review table with member matching, confirm button.
-- `src/lib/fuzzy-match.ts` (new) — small Levenshtein helper for name matching.
-- `src/routes/events.tsx` (edit) — add "Import from screenshot" button next to the AvA card.
+- edit `src/routes/events.tsx` — swap button + handler
+- rename/edit `src/lib/ava-import.functions.ts` → `src/lib/screenshot-import.functions.ts` (generic)
+- rename/edit `src/components/AvaImportDialog.tsx` → `src/components/ImportScreenshotsDialog.tsx`
+- no DB changes, no new secrets (LOVABLE_API_KEY already set)
 
-## Notes / assumptions
+## Caveats
 
-- Uses **Lovable AI Gateway** (no extra API keys needed). Gemini 2.5 Flash is multimodal and cheap; one screenshot ≈ a few cents.
-- We store **only the rank** (`avaWeeklyScore`), since that's what the scoring system uses. The score number is shown in the review table for context but not persisted (no metric exists for it).
-- Names in screenshots may not match member names exactly — that's why we keep a confirm step rather than auto-writing.
-- No DB changes.
-- If the user later wants to also feed the parser screenshots from other ranking screens (Daily, Ranking tab), the same server function works — just update the prompt.
+- Status-event screenshots vary a lot (rally lists, kill leaderboards, march queues). The AI extracts names; the review step is where you catch misses. Same model/cost profile as AvA today.
+- Only names + (for AvA) rank/score are persisted. No power/kill counts unless you later add metrics for them.
