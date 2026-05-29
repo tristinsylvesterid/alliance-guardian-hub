@@ -105,7 +105,7 @@ function EventsPage() {
   }
 
   function handleStartNewWeek() {
-    startNewWeek();
+    startNewWeek(members);
   }
 
   if (!activeWeeks.find((w) => w.weekId === selectedWeekId) && activeWeeks[0]) {
