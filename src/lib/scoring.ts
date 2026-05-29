@@ -137,16 +137,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
       { label: "<1M", points: 0, max: 0.99 },
     ],
   },
-  {
-    key: "engagement",
-    name: "Engagement",
-    type: "boolean",
-    maxPoints: 1,
-    brackets: [
-      { label: "Yes", points: 1, condition: "yes" },
-      { label: "No", points: 0, condition: "no" },
-    ],
-  },
+
 ];
 
 export const MAX_TOTAL_POINTS = METRIC_DEFINITIONS.reduce((sum, m) => sum + m.maxPoints, 0);
