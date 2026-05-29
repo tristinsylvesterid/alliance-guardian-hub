@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { snapshotAllMembers } from "@/lib/metrics-history";
+import type { Member } from "@/lib/mock-data";
 
 export type EventStatus = "check" | "x" | "na";
 
@@ -189,7 +191,7 @@ export function useWeeklyEvents() {
   }
 
 
-  async function startNewWeek() {
+  async function startNewWeek(members?: Member[]) {
     const currentStart = getWeekStart(new Date());
     const newWeekId = formatWeekId(currentStart);
 
@@ -208,6 +210,11 @@ export function useWeeklyEvents() {
     if (activeWeeks.length >= MAX_ACTIVE_WEEKS) {
       const oldest = activeWeeks[activeWeeks.length - 1];
       await supabase.from("weekly_events").update({ is_archived: true }).eq("id", oldest.id);
+    }
+
+    // Snapshot all members for this new week (auto_weekly).
+    if (members && members.length > 0) {
+      await snapshotAllMembers(members, "auto_weekly", newWeekId);
     }
 
     await fetchWeeks();
