@@ -19,8 +19,8 @@ export const parseEventScreenshot = createServerFn({ method: "POST" })
     if (!data || !Array.isArray(data.images) || data.images.length === 0) {
       throw new Error("At least one image is required");
     }
-    if (data.images.length > 10) {
-      throw new Error("Maximum 10 images per request");
+    if (data.images.length > 3) {
+      throw new Error("Maximum 3 images per request — send one at a time for large screenshots");
     }
     if (data.inputType !== "rank" && data.inputType !== "status") {
       throw new Error("Invalid inputType");
@@ -28,6 +28,7 @@ export const parseEventScreenshot = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }): Promise<ParseResult> => {
+    console.log(`[parseEventScreenshot] inputType=${data.inputType} images=${data.images.length} event=${data.eventName}`);
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
 
