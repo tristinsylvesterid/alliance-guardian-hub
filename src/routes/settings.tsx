@@ -13,9 +13,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { useEventTypes } from "@/hooks/use-event-types";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
+import { useMembers } from "@/hooks/use-members";
+import { snapshotAllMembers } from "@/lib/metrics-history";
 import { RankBadge } from "@/components/RankBadge";
 import type { Rank } from "@/lib/scoring";
-import { Plus, Trash2, Pencil, Save, X } from "lucide-react";
+import { Plus, Trash2, Pencil, Save, X, Database } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -31,6 +33,8 @@ function SettingsPage() {
   const { eventTypes, addEventType, removeEventType } = useEventTypes();
   const { metrics, maxTotal, updateBracket, addBracket, removeBracket, recalcMaxPoints } = useScoringConfig();
   const { thresholds, updateThreshold } = useRankThresholds();
+  const { members } = useMembers();
+  const [seeding, setSeeding] = useState(false);
 
   const [newEventName, setNewEventName] = useState("");
   const [editingMetric, setEditingMetric] = useState<string | null>(null);
@@ -82,6 +86,37 @@ function SettingsPage() {
           <h1 className="font-heading text-3xl font-bold tracking-wide text-gold">Settings</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage scoring brackets and event configuration</p>
         </div>
+
+        {/* Analytics baseline */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-heading text-gold flex items-center gap-2">
+              <Database className="h-4 w-4" /> Analytics Baseline
+            </CardTitle>
+            <CardDescription>
+              Record a baseline snapshot for every current member dated today. Charts on the Analytics page use these snapshots as their starting point. Safe to re-run — only the latest snapshot per member per day is kept.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              disabled={seeding || members.length === 0}
+              onClick={async () => {
+                setSeeding(true);
+                try {
+                  await snapshotAllMembers(members, "baseline", null, thresholds, maxTotal);
+                  toast.success(`Baseline snapshot recorded for ${members.length} members`);
+                } catch (e) {
+                  toast.error(`Snapshot failed: ${(e as Error).message}`);
+                } finally {
+                  setSeeding(false);
+                }
+              }}
+            >
+              {seeding ? "Recording…" : `Seed baseline for ${members.length} members`}
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Scoring Reference */}
         <Card>
