@@ -47,6 +47,7 @@ export function ImportScreenshotsDialog({ members, eventTypes, onApplyStatus, on
   const [eventKey, setEventKey] = useState<string>(eventTypes[0]?.key ?? "");
   const [files, setFiles] = useState<File[]>([]);
   const [parsing, setParsing] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
   const [rows, setRows] = useState<ReviewRow[]>([]);
   const [applying, setApplying] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +60,7 @@ export function ImportScreenshotsDialog({ members, eventTypes, onApplyStatus, on
     setRows([]);
     setParsing(false);
     setApplying(false);
+    setProgress({ done: 0, total: 0 });
   }
 
   function handleClose(o: boolean) {
@@ -69,12 +71,63 @@ export function ImportScreenshotsDialog({ members, eventTypes, onApplyStatus, on
   async function handleParse() {
     if (!files.length || !selectedEvent) return;
     setParsing(true);
+    setProgress({ done: 0, total: files.length });
+
+    const inputType = selectedEvent.inputType === "rank" ? "rank" : "status";
+    const allRankRows: { rank: number; name: string; score?: number }[] = [];
+    const allNameRows: { name: string }[] = [];
+    let failures = 0;
+
     try {
-      const images = await Promise.all(files.map(fileToDataUrl));
-      const result = await parseFn({
-        data: { images, inputType: selectedEvent.inputType === "rank" ? "rank" : "status", eventName: selectedEvent.name },
-      });
-      const reviewRows: ReviewRow[] = result.rows.map((r: { name: string; rank?: number; score?: number }) => {
+      for (let i = 0; i < files.length; i++) {
+        try {
+          const dataUrl = await fileToDataUrl(files[i]);
+          const result = await parseFn({
+            data: { images: [dataUrl], inputType, eventName: selectedEvent.name },
+          });
+          for (const r of result.rows as Array<{ name: string; rank?: number; score?: number }>) {
+            if (inputType === "rank" && typeof r.rank === "number") {
+              allRankRows.push({ rank: r.rank, name: r.name, score: r.score });
+            } else if (inputType === "status") {
+              allNameRows.push({ name: r.name });
+            }
+          }
+        } catch (err) {
+          failures++;
+          console.error(`Failed to parse image ${i + 1}/${files.length} (${files[i].name})`, err);
+          toast.warning(`Image ${i + 1} failed: ${err instanceof Error ? err.message : "unknown error"}`);
+        } finally {
+          setProgress({ done: i + 1, total: files.length });
+        }
+      }
+
+      if (failures === files.length) {
+        toast.error("All images failed to parse");
+        return;
+      }
+
+      // Dedupe + build review rows
+      let merged: Array<{ name: string; rank?: number; score?: number }> = [];
+      if (inputType === "rank") {
+        const seen = new Set<number>();
+        for (const r of allRankRows.sort((a, b) => a.rank - b.rank)) {
+          if (!seen.has(r.rank)) {
+            seen.add(r.rank);
+            merged.push(r);
+          }
+        }
+      } else {
+        const seen = new Set<string>();
+        for (const r of allNameRows) {
+          const k = r.name.trim().toLowerCase();
+          if (k && !seen.has(k)) {
+            seen.add(k);
+            merged.push({ name: r.name });
+          }
+        }
+      }
+
+      const reviewRows: ReviewRow[] = merged.map((r) => {
         const match = bestMatch(r.name, members, (m) => m.name);
         return {
           name: r.name,
@@ -84,12 +137,10 @@ export function ImportScreenshotsDialog({ members, eventTypes, onApplyStatus, on
           autoMatched: !!match && match.exact,
         };
       });
+
       setRows(reviewRows);
       if (!reviewRows.length) toast.error("No rows extracted from screenshots");
       else toast.success(`Parsed ${reviewRows.length} ${isRank ? "rows" : "names"}`);
-    } catch (e) {
-      console.error(e);
-      toast.error(e instanceof Error ? e.message : "Failed to parse screenshots");
     } finally {
       setParsing(false);
     }
