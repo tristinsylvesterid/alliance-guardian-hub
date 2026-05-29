@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as EventArchiveRouteImport } from './routes/event-archive'
 import { Route as ChangelogRouteImport } from './routes/changelog'
+import { Route as AtRiskRouteImport } from './routes/at-risk'
 import { Route as ArchiveRouteImport } from './routes/archive'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -61,6 +62,11 @@ const ChangelogRoute = ChangelogRouteImport.update({
   path: '/changelog',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AtRiskRoute = AtRiskRouteImport.update({
+  id: '/at-risk',
+  path: '/at-risk',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ArchiveRoute = ArchiveRouteImport.update({
   id: '/archive',
   path: '/archive',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/archive': typeof ArchiveRoute
+  '/at-risk': typeof AtRiskRoute
   '/changelog': typeof ChangelogRoute
   '/event-archive': typeof EventArchiveRoute
   '/events': typeof EventsRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/archive': typeof ArchiveRoute
+  '/at-risk': typeof AtRiskRoute
   '/changelog': typeof ChangelogRoute
   '/event-archive': typeof EventArchiveRoute
   '/events': typeof EventsRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/archive': typeof ArchiveRoute
+  '/at-risk': typeof AtRiskRoute
   '/changelog': typeof ChangelogRoute
   '/event-archive': typeof EventArchiveRoute
   '/events': typeof EventsRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/archive'
+    | '/at-risk'
     | '/changelog'
     | '/event-archive'
     | '/events'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/archive'
+    | '/at-risk'
     | '/changelog'
     | '/event-archive'
     | '/events'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/archive'
+    | '/at-risk'
     | '/changelog'
     | '/event-archive'
     | '/events'
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   ArchiveRoute: typeof ArchiveRoute
+  AtRiskRoute: typeof AtRiskRoute
   ChangelogRoute: typeof ChangelogRoute
   EventArchiveRoute: typeof EventArchiveRoute
   EventsRoute: typeof EventsRoute
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChangelogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/at-risk': {
+      id: '/at-risk'
+      path: '/at-risk'
+      fullPath: '/at-risk'
+      preLoaderRoute: typeof AtRiskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/archive': {
       id: '/archive'
       path: '/archive'
@@ -259,6 +279,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   ArchiveRoute: ArchiveRoute,
+  AtRiskRoute: AtRiskRoute,
   ChangelogRoute: ChangelogRoute,
   EventArchiveRoute: EventArchiveRoute,
   EventsRoute: EventsRoute,

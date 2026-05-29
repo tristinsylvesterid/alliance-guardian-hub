@@ -1,11 +1,12 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Trophy, Calendar, Settings, Shield, Archive, CalendarClock, Swords, UserCog, LogOut, ScrollText } from "lucide-react";
+import { LayoutDashboard, Users, Trophy, Calendar, Settings, Shield, Archive, CalendarClock, Swords, UserCog, LogOut, ScrollText, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/members", label: "Members", icon: Users },
   { to: "/rankings", label: "Rankings", icon: Trophy },
+  { to: "/at-risk", label: "At Risk", icon: AlertTriangle },
   { to: "/events", label: "Events", icon: Calendar },
   { to: "/svs-planning", label: "SvS Planning", icon: Swords },
   { to: "/event-archive", label: "Event Archive", icon: CalendarClock },
@@ -14,6 +15,7 @@ const navItems = [
   { to: "/admin", label: "User Management", icon: UserCog, adminOnly: true },
   { to: "/changelog", label: "Change Log", icon: ScrollText, adminOnly: true },
 ] as const;
+
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
