@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,17 +6,28 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, Loader2, X, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { parseAvaScreenshot, type ParsedAvaRow } from "@/lib/ava-import.functions";
+import { parseEventScreenshot } from "@/lib/screenshot-import.functions";
 import { bestMatch } from "@/lib/fuzzy-match";
 import type { Member } from "@/lib/mock-data";
 
+interface EventTypeOption {
+  key: string;
+  name: string;
+  inputType: string;
+}
+
 interface Props {
   members: Member[];
-  onApply: (assignments: { memberId: string; rank: number }[]) => Promise<void> | void;
+  eventTypes: EventTypeOption[];
+  onApplyStatus: (eventKey: string, memberIds: string[]) => Promise<void> | void;
+  onApplyRank: (eventKey: string, assignments: { memberId: string; rank: number }[]) => Promise<void> | void;
   trigger?: React.ReactNode;
 }
 
-interface ReviewRow extends ParsedAvaRow {
+interface ReviewRow {
+  name: string;
+  rank?: number;
+  score?: number;
   matchedMemberId: string | "skip";
   autoMatched: boolean;
 }
@@ -30,14 +41,18 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-export function AvaImportDialog({ members, onApply, trigger }: Props) {
-  const parseFn = useServerFn(parseAvaScreenshot);
+export function ImportScreenshotsDialog({ members, eventTypes, onApplyStatus, onApplyRank, trigger }: Props) {
+  const parseFn = useServerFn(parseEventScreenshot);
   const [open, setOpen] = useState(false);
+  const [eventKey, setEventKey] = useState<string>(eventTypes[0]?.key ?? "");
   const [files, setFiles] = useState<File[]>([]);
   const [parsing, setParsing] = useState(false);
   const [rows, setRows] = useState<ReviewRow[]>([]);
   const [applying, setApplying] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedEvent = useMemo(() => eventTypes.find((e) => e.key === eventKey), [eventTypes, eventKey]);
+  const isRank = selectedEvent?.inputType === "rank";
 
   function reset() {
     setFiles([]);
@@ -52,26 +67,26 @@ export function AvaImportDialog({ members, onApply, trigger }: Props) {
   }
 
   async function handleParse() {
-    if (!files.length) return;
+    if (!files.length || !selectedEvent) return;
     setParsing(true);
     try {
       const images = await Promise.all(files.map(fileToDataUrl));
-      const result = await parseFn({ data: { images } });
-      const reviewRows: ReviewRow[] = result.rows.map((r) => {
+      const result = await parseFn({
+        data: { images, inputType: selectedEvent.inputType === "rank" ? "rank" : "status", eventName: selectedEvent.name },
+      });
+      const reviewRows: ReviewRow[] = result.rows.map((r: { name: string; rank?: number; score?: number }) => {
         const match = bestMatch(r.name, members, (m) => m.name);
-        const auto = !!match && match.exact;
         return {
-          ...r,
+          name: r.name,
+          rank: r.rank,
+          score: r.score,
           matchedMemberId: match && match.score <= 2 ? match.item.id : "skip",
-          autoMatched: auto,
+          autoMatched: !!match && match.exact,
         };
       });
       setRows(reviewRows);
-      if (!reviewRows.length) {
-        toast.error("No rows extracted from screenshots");
-      } else {
-        toast.success(`Parsed ${reviewRows.length} rows`);
-      }
+      if (!reviewRows.length) toast.error("No rows extracted from screenshots");
+      else toast.success(`Parsed ${reviewRows.length} ${isRank ? "rows" : "names"}`);
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Failed to parse screenshots");
@@ -81,21 +96,29 @@ export function AvaImportDialog({ members, onApply, trigger }: Props) {
   }
 
   async function handleApply() {
-    const assignments = rows
-      .filter((r) => r.matchedMemberId !== "skip")
-      .map((r) => ({ memberId: r.matchedMemberId, rank: r.rank }));
-    if (!assignments.length) {
+    if (!selectedEvent) return;
+    const matched = rows.filter((r) => r.matchedMemberId !== "skip");
+    if (!matched.length) {
       toast.error("Nothing to apply");
       return;
     }
     setApplying(true);
     try {
-      await onApply(assignments);
-      toast.success(`Updated AvA rank for ${assignments.length} members`);
+      if (isRank) {
+        const assignments = matched
+          .filter((r) => typeof r.rank === "number")
+          .map((r) => ({ memberId: r.matchedMemberId, rank: r.rank as number }));
+        await onApplyRank(selectedEvent.key, assignments);
+        toast.success(`Updated ${selectedEvent.name} rank for ${assignments.length} members`);
+      } else {
+        const ids = matched.map((r) => r.matchedMemberId);
+        await onApplyStatus(selectedEvent.key, ids);
+        toast.success(`Marked ${ids.length} members as attended for ${selectedEvent.name}`);
+      }
       handleClose(false);
     } catch (e) {
       console.error(e);
-      toast.error("Failed to apply ranks");
+      toast.error("Failed to apply changes");
     } finally {
       setApplying(false);
     }
@@ -114,21 +137,40 @@ export function AvaImportDialog({ members, onApply, trigger }: Props) {
       <DialogTrigger asChild>
         {trigger ?? (
           <Button variant="outline" size="sm" className="border-gold/30 text-gold hover:bg-gold/10">
-            <Sparkles className="mr-2 h-4 w-4" /> Import AvA from screenshot
+            <Sparkles className="mr-2 h-4 w-4" /> Import from screenshots
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="font-heading text-gold">Import AvA ranks from screenshots</DialogTitle>
+          <DialogTitle className="font-heading text-gold">Import from screenshots</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 overflow-y-auto flex-1">
           {rows.length === 0 && (
-            <div className="space-y-3">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-wide text-muted-foreground">Event</label>
+                <Select value={eventKey} onValueChange={setEventKey}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Pick event…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {eventTypes.map((e) => (
+                      <SelectItem key={e.key} value={e.key}>
+                        {e.name} <span className="text-muted-foreground">({e.inputType === "rank" ? "rank" : "attendance"})</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <p className="text-sm text-muted-foreground">
-                Upload one or more in-game AvA ranking screenshots. The app will read player names and ranks and let you confirm before saving.
+                {isRank
+                  ? "Upload AvA ranking screenshots. The app reads names + ranks and lets you confirm before saving."
+                  : `Upload screenshots showing who participated in ${selectedEvent?.name ?? "the event"} (rally lists, leaderboards, etc.). Matched members will be marked as attended.`}
               </p>
+
               <input
                 ref={inputRef}
                 type="file"
@@ -157,7 +199,7 @@ export function AvaImportDialog({ members, onApply, trigger }: Props) {
               <div>
                 <Button
                   onClick={handleParse}
-                  disabled={!files.length || parsing}
+                  disabled={!files.length || !eventKey || parsing}
                   className="bg-gold text-background hover:bg-gold/90"
                 >
                   {parsing ? (
@@ -174,19 +216,23 @@ export function AvaImportDialog({ members, onApply, trigger }: Props) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-16 text-gold-muted font-heading">Rank</TableHead>
+                  {isRank && <TableHead className="w-16 text-gold-muted font-heading">Rank</TableHead>}
                   <TableHead className="text-gold-muted font-heading">Parsed name</TableHead>
-                  <TableHead className="text-gold-muted font-heading">Score</TableHead>
+                  {isRank && <TableHead className="text-gold-muted font-heading">Score</TableHead>}
                   <TableHead className="text-gold-muted font-heading">Assign to member</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((r, i) => (
-                  <TableRow key={`${r.rank}-${i}`} className="border-border/50">
-                    <TableCell className="font-medium text-foreground">#{r.rank}</TableCell>
+                  <TableRow key={`${r.name}-${i}`} className="border-border/50">
+                    {isRank && <TableCell className="font-medium text-foreground">#{r.rank}</TableCell>}
                     <TableCell className="text-foreground">{r.name}</TableCell>
-                    <TableCell className="text-muted-foreground tabular-nums">{r.score.toLocaleString()}</TableCell>
+                    {isRank && (
+                      <TableCell className="text-muted-foreground tabular-nums">
+                        {(r.score ?? 0).toLocaleString()}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Select value={r.matchedMemberId} onValueChange={(v) => updateMatch(i, v)}>
                         <SelectTrigger className={r.autoMatched ? "border-gold/40" : ""}>
@@ -229,7 +275,7 @@ export function AvaImportDialog({ members, onApply, trigger }: Props) {
                 {applying ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Applying…</>
                 ) : (
-                  <>Apply {rows.filter((r) => r.matchedMemberId !== "skip").length} ranks</>
+                  <>Apply {rows.filter((r) => r.matchedMemberId !== "skip").length}</>
                 )}
               </Button>
             </>
