@@ -119,16 +119,6 @@ export function evaluateMemberRisk(member: Member, ctx: WeekContext): RiskFlag[]
     });
   }
 
-  const engagement = m.engagement;
-  const engBool = typeof engagement === "boolean" ? engagement : engagement === "yes" || engagement === "Yes";
-  if (engagement !== undefined && !engBool) {
-    flags.push({
-      key: "no_engagement",
-      label: "Not engaged",
-      severity: "low",
-    });
-  }
-
   return flags;
 }
 
