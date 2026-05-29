@@ -1,35 +1,85 @@
-## Problem
+# Analytics Page Plan (v3)
 
-Uploading ~9 AvA ranking screenshots and clicking **Parse** appears to do nothing — no toast, no result. Boolean-event parsing works because it usually involves fewer/smaller images and a trivial JSON shape.
+A new `/analytics` route to track member and alliance performance over time, plus a `member_metrics_history` table so member progression becomes a real time series. CSV export from every section.
 
-Root cause: `ImportScreenshotsDialog.handleParse` sends **all** images in one `parseEventScreenshot` server-fn call. Nine ~880×1900 PNGs base64-encoded into a single JSON-RPC body is ~15–25 MB, and asking Gemini to reason over 9 images at once is slow. The call hits a size/timeout limit at the worker or gateway and never resolves — the `try/catch` never fires because the promise just hangs, leaving the spinner spinning with no log on the server side (confirmed: no server-function logs for `parseEventScreenshot` at all).
+## What we already have
+- `event_attendance` — weekly per-member event status (check/x/na, AvA rank in `value`)
+- `weekly_events` — chronological week list
+- `members.metrics` — **current** snapshot only
+- `scoring_config`, `rank_thresholds`, `poll_responses`, `member_name_history`
 
-## Fix
+## Schema change: `member_metrics_history`
 
-Process images **one at a time** on the client, calling `parseEventScreenshot` per image, then merge + dedupe rows. This:
-- keeps each request small and fast
-- gives the user visible progress ("Parsing 3 / 9…")
-- lets one bad image fail without killing the whole batch
-- surfaces real errors (the existing 402/429/gateway error messages will actually reach a toast)
+Columns: `id`, `member_id`, `metrics` (jsonb), `power` (numeric), `leadership_rank` (text), `total_score` (int), `rank` (text R1–R5), `recorded_at` (timestamptz default now()), `recorded_date` (date, generated/derived), `week_id` (nullable text), `source` (text: 'manual' | 'auto_weekly' | 'baseline' | 'edit').
 
-### Changes
+**Dedupe rule:** unique `(member_id, recorded_date)` — only the **latest** snapshot for a given member/day is kept.
+- Implementation: `INSERT ... ON CONFLICT (member_id, recorded_date) DO UPDATE SET …` on every write
+- Indexes: `(member_id, recorded_at desc)`, `(week_id)`
+- RLS: read = authenticated; write = officer/admin. GRANT to authenticated + service_role.
 
-**`src/components/ImportScreenshotsDialog.tsx`**
-- Replace single-shot `handleParse` with a loop over `files`, calling `parseFn` with one image at a time.
-- Track progress in state (`parsedCount` / `totalCount`) and show it in the Parse button label.
-- Collect rows across calls, then dedupe:
-  - rank mode: keep first occurrence per `rank`, sort ascending
-  - status mode: keep first occurrence per lowercased `name`
-- If a single image fails, `console.error` it, show a non-blocking warning toast, and continue with the rest. Only show a hard error if **every** image fails.
-- Run the AI matching pass once at the end on the merged rows (unchanged logic).
+## Snapshot triggers (when history rows are written)
 
-**`src/lib/screenshot-import.functions.ts`**
-- Lower the `images` cap from 10 → 3 as a defensive guard (we'll only ever send 1 from the new client, but keeping a small ceiling prevents accidental regressions).
-- Add a `console.log` at handler entry with `inputType` and image count so future failures show up in server logs.
+1. **Baseline on new member creation** — `saveMember` (insert path) writes a history row with `source='baseline'`. Guarantees every member has a starting point the moment they're added.
+2. **On any metric edit** — `saveMember` (update path) + `updateMemberMetrics` upsert a row with `source='edit'`. Dedupe-per-day means rapid edits collapse into one row.
+3. **On `startNewWeek`** — snapshot all current members with `source='auto_weekly'` and `week_id`. Gives a reliable weekly cadence even if no edits happened.
+4. **One-time backfill button (Settings → "Seed Analytics Baseline")** — for the current roster, upserts a `source='baseline'` row dated today for every member. User runs this **once** when they're done entering initial info. Idempotent (dedupe key handles re-runs).
 
-No DB, route, or schema changes. No UI restructuring beyond the progress label.
+## Page layout
 
-### Out of scope
+### Top: Average Stat Cards (NEW per user request)
+Grid of compact KPI cards — one per scored metric — each showing the alliance **average** of that stat right now, plus a small trend delta vs the same metric 4 weeks ago (from history). Cards:
+- HQ Level (avg)
+- Troop Tier (modal: most common tier, e.g. "T9")
+- Rally Cap (avg)
+- Alliance Recognition % (avg)
+- AvA Weekly Rank (avg, lower=better)
+- PC Heroes (avg)
+- Tech Power (avg, M)
+- Vehicle Power (avg, M)
+- Kill Count (avg, M)
+- Total Power (avg + sum)
+- Avg Total Score / Max
+Each card: big number, label, trend arrow (▲▼ with % vs 4w ago), uses gold/rank theme tokens.
 
-- Client-side image downscaling (could add later if individual screenshots are still too large, but the originals here are ~1 MB each and Gemini handles them fine one-by-one).
-- Parallelizing the per-image calls (sequential is fine for ≤10 images and avoids rate-limit 429s).
+### 1. Alliance Overview strip
+Active members, % R3+, avg 4-week attendance, total combat power. **[Export CSV]**
+
+### 2. Attendance Over Time (line chart)
+Line per event (Ice Pit 1/2/3, Glory War, Capital, SvS, AvA), Y = attendance %. Toggles. **[Export CSV]**
+
+### 3. Member Progression Over Time (from history)
+- Avg HQ level, avg power, total kill count, avg tech/vehicle power per week
+- Stacked area: rank distribution per week
+- Troop tier distribution over time
+**[Export CSV]**
+
+### 4. AvA Performance
+Avg AvA rank per week + stacked bars of top30/31–50/51–70/71+. **[Export CSV]**
+
+### 5. Event Participation Heatmap
+Events × last 12 weeks, color = attendance %. **[Export CSV]**
+
+### 6. Leaderboards (tabs)
+Most consistent · Most improved · At risk · Top contributors. **[Export CSV per tab]**
+
+### 7. Per-Member Drilldown
+Searchable selector showing attendance timeline, AvA trend, score/power/HQ/kill count over time, current breakdown vs alliance avg, name history. **[Export this member's full history]**
+
+### 8. Filters
+Date range (4/8/12/26 weeks/all), rank, event subset.
+
+## CSV Export
+Shared `src/lib/csv.ts`: `exportCsv(filename, rows, columns)` with proper escaping, UTF-8 BOM. Triggered by `<Button variant="outline" size="sm"><Download/></Button>` on each card. Filename: `{section}_{YYYY-MM-DD}.csv`.
+
+## Technical notes
+- New route `src/routes/analytics.tsx` + sidebar link in `AppLayout`
+- Recharts (already in shadcn `chart.tsx`); theme tokens for colors
+- New hooks: `useMetricsHistory()`, `useAnalytics(weeks, members, history)` — memoized
+- Modify `useMembers.saveMember` and `updateMemberMetrics` to upsert history rows
+- Modify `useWeeklyEvents.startNewWeek` to snapshot all members
+- New Settings button → seed baseline for all current members (idempotent via dedupe key)
+- ~100 members × 26 weeks ≈ 2.6k history rows + ~18k attendance rows — fine client-side
+
+## Open questions
+1. For Top Stat Cards, OK to compute trend delta as "now vs nearest history row ≥28 days ago" (graceful when not enough history exists yet)?
+2. Should the "Seed Analytics Baseline" button be officer-only or admin-only?

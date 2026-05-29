@@ -155,6 +155,48 @@ export type Database = {
         }
         Relationships: []
       }
+      member_metrics_history: {
+        Row: {
+          id: string
+          leadership_rank: string | null
+          member_id: string
+          metrics: Json
+          power: number
+          rank: string | null
+          recorded_at: string
+          recorded_date: string
+          source: string
+          total_score: number
+          week_id: string | null
+        }
+        Insert: {
+          id?: string
+          leadership_rank?: string | null
+          member_id: string
+          metrics?: Json
+          power?: number
+          rank?: string | null
+          recorded_at?: string
+          recorded_date?: string
+          source?: string
+          total_score?: number
+          week_id?: string | null
+        }
+        Update: {
+          id?: string
+          leadership_rank?: string | null
+          member_id?: string
+          metrics?: Json
+          power?: number
+          rank?: string | null
+          recorded_at?: string
+          recorded_date?: string
+          source?: string
+          total_score?: number
+          week_id?: string | null
+        }
+        Relationships: []
+      }
       member_name_history: {
         Row: {
           changed_at: string
