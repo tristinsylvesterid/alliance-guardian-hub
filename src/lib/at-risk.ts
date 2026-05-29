@@ -37,7 +37,7 @@ export const RISK_INDICATORS = [
   { key: "low_score", label: "Overall score in R1 range" },
   { key: "low_troops", label: "T8 troops or lower" },
   { key: "low_hq", label: "HQ ≤27" },
-  { key: "no_engagement", label: "Not engaged" },
+  
 ] as const;
 
 export function evaluateMemberRisk(member: Member, ctx: WeekContext): RiskFlag[] {
