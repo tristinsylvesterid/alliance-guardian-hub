@@ -17,6 +17,7 @@ import { useWeeklyPolls } from "@/hooks/use-weekly-polls";
 import { calculateTotalScore, getRank, METRIC_DEFINITIONS, calculateMetricPoints } from "@/lib/scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { Check, X, Minus, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { AvaImportDialog } from "@/components/AvaImportDialog";
 
 export const Route = createFileRoute("/events")({
   component: EventsPage,
@@ -122,7 +123,15 @@ function EventsPage() {
             <h1 className="font-heading text-3xl font-bold tracking-wide text-gold">Events</h1>
             <p className="mt-1 text-sm text-muted-foreground">Record who actually showed up to each weekly event</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <AvaImportDialog
+              members={rawMembers}
+              onApply={async (assignments) => {
+                for (const a of assignments) {
+                  await handleRankChange(a.memberId, "ava", a.rank);
+                }
+              }}
+            />
             <Button
               onClick={handleStartNewWeek}
               variant="outline"
