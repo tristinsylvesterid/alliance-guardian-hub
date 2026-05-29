@@ -44,7 +44,7 @@ const EVENT_TO_METRIC: Record<string, string> = {
 function EventsPage() {
   const { members: rawMembers, updateMemberMetrics } = useMembers();
   const { eventTypes: rawEventTypes } = useEventTypes();
-  const EVENT_ORDER = ["ice_pit_1", "glory_war", "ice_pit_2", "ice_pit_3", "svs", "ava"];
+  const EVENT_ORDER = ["ice_pit_1", "glory_war", "ice_pit_2", "ice_pit_3", "capital", "svs", "ava"];
   const eventTypes = [...rawEventTypes].sort((a, b) => {
     const ai = EVENT_ORDER.indexOf(a.key);
     const bi = EVENT_ORDER.indexOf(b.key);
