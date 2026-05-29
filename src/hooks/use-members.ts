@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Member } from "@/lib/mock-data";
 import type { Json } from "@/integrations/supabase/types";
+import { snapshotMemberMetrics } from "@/lib/metrics-history";
 
 function rowToMember(row: {
   id: string;
@@ -57,6 +58,8 @@ export function useMembers() {
 
   async function saveMember(member: Member) {
     const metricsJson = member.metrics as unknown as Json;
+    // Detect whether this is a new member (baseline) vs an edit.
+    const isNew = !members.some((m) => m.id === member.id);
     await supabase.from("members").upsert({
       id: member.id,
       name: member.name,
@@ -66,6 +69,7 @@ export function useMembers() {
       location_x: member.locationX ?? (typeof member.metrics.locationX === "number" ? member.metrics.locationX : 0),
       location_y: member.locationY ?? (typeof member.metrics.locationY === "number" ? member.metrics.locationY : 0),
     }).select().single();
+    await snapshotMemberMetrics({ member, source: isNew ? "baseline" : "edit" });
     await fetchMembers();
     return member;
   }
@@ -82,6 +86,10 @@ export function useMembers() {
 
   async function updateMemberMetrics(id: string, metrics: Record<string, number | boolean | string>) {
     await supabase.from("members").update({ metrics: metrics as unknown as Json }).eq("id", id);
+    const existing = members.find((m) => m.id === id);
+    if (existing) {
+      await snapshotMemberMetrics({ member: { ...existing, metrics }, source: "edit" });
+    }
     await fetchMembers();
   }
 
