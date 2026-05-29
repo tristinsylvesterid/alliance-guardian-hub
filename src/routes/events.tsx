@@ -123,7 +123,15 @@ function EventsPage() {
             <h1 className="font-heading text-3xl font-bold tracking-wide text-gold">Events</h1>
             <p className="mt-1 text-sm text-muted-foreground">Record who actually showed up to each weekly event</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <AvaImportDialog
+              members={rawMembers}
+              onApply={async (assignments) => {
+                for (const a of assignments) {
+                  await handleRankChange(a.memberId, "ava", a.rank);
+                }
+              }}
+            />
             <Button
               onClick={handleStartNewWeek}
               variant="outline"
