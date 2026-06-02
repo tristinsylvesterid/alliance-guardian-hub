@@ -74,8 +74,10 @@ function AtRiskPage() {
           avaRank,
         });
 
-        const score = calculateTotalScore(m.metrics);
-        const rank = getRank(score, m.leadershipRank, thresholds);
+        const base = calculateTotalScore(m.metrics);
+        const ev = getEventPoints(m.id);
+        const score = base + ev.earned;
+        const rank = getRank(score, m.leadershipRank, thresholds, MAX_TOTAL_POINTS + ev.max);
         return { ...m, flags, score, rank, attended, totalOpps: activeEvents.length + polls.length };
       })
       .filter((m) => m.flags.length > 0)
