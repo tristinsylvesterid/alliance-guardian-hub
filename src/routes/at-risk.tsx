@@ -49,6 +49,10 @@ function AtRiskPage() {
     const svsActive = isEventActive(currentWeek.weekId, "svs");
     const avaActive = isEventActive(currentWeek.weekId, "ava");
 
+    const svsAttendanceRecorded = svsActive && members.some(
+      (mm) => getStatus(currentWeek.weekId, mm.id, "svs") === "check",
+    );
+
     return members
       .filter((m) => m.leadershipRank !== "R4" && m.leadershipRank !== "R5")
       .map((m) => {
@@ -70,6 +74,7 @@ function AtRiskPage() {
           pollResponseCount: pollResponses,
           svsActive,
           svsAttended,
+          svsAttendanceRecorded,
           avaActive,
           avaRank,
         });
