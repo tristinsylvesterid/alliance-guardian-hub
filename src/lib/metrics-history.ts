@@ -16,6 +16,8 @@ interface SnapshotArgs {
   weekId?: string | null;
   thresholds?: RankThresholdEntry[];
   maxPoints?: number;
+  /** Per-week event points to add into the snapshotted total_score. */
+  eventBonus?: { earned: number; max: number };
 }
 
 /**
@@ -28,9 +30,14 @@ export async function snapshotMemberMetrics({
   weekId = null,
   thresholds,
   maxPoints,
+  eventBonus,
 }: SnapshotArgs) {
-  const totalScore = calculateTotalScore(member.metrics);
-  const rank: Rank = getRank(totalScore, member.leadershipRank, thresholds, maxPoints);
+  const baseScore = calculateTotalScore(member.metrics);
+  const totalScore = baseScore + (eventBonus?.earned ?? 0);
+  const effectiveMax = (maxPoints ?? undefined) !== undefined
+    ? (maxPoints as number) + (eventBonus?.max ?? 0)
+    : undefined;
+  const rank: Rank = getRank(totalScore, member.leadershipRank, thresholds, effectiveMax);
   const today = new Date().toISOString().slice(0, 10);
   const row = {
     member_id: member.id,
