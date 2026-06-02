@@ -10,6 +10,7 @@ import { useWeeklyEvents } from "@/hooks/use-weekly-events";
 import { useWeeklyPolls } from "@/hooks/use-weekly-polls";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { calculateTotalScore, getRank, MAX_TOTAL_POINTS } from "@/lib/scoring";
+import { useEventScoring } from "@/hooks/use-event-scoring";
 import {
   evaluateMemberRisk,
   severityRank,
