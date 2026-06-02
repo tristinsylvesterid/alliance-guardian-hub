@@ -54,19 +54,21 @@ export function evaluateMemberRisk(member: Member, ctx: WeekContext): RiskFlag[]
     });
   }
 
-  const ava = Number(m.avaWeeklyScore ?? 0);
-  if (ava === 0) {
-    flags.push({
-      key: "ava_weak",
-      label: "No AvA rank",
-      severity: "medium",
-    });
-  } else if (ava >= 50) {
-    flags.push({
-      key: "ava_weak",
-      label: `AvA rank #${ava}`,
-      severity: ava >= 71 ? "high" : "medium",
-    });
+  if (ctx.avaActive) {
+    const ava = ctx.avaRank ?? 0;
+    if (ava === 0) {
+      flags.push({
+        key: "ava_weak",
+        label: "No AvA rank",
+        severity: "medium",
+      });
+    } else if (ava >= 50) {
+      flags.push({
+        key: "ava_weak",
+        label: `AvA rank #${ava}`,
+        severity: ava >= 71 ? "high" : "medium",
+      });
+    }
   }
 
   // Zero weekly participation: nothing attended, no polls answered, no AvA rank
