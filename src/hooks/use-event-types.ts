@@ -53,11 +53,19 @@ export function useEventTypes() {
     return { error: error?.message ?? null };
   }
 
+  async function setPointWeight(key: string, pointWeight: number) {
+    const safe = Math.max(0, Math.round(pointWeight));
+    const { error } = await supabase.from("event_types").update({ point_weight: safe }).eq("key", key);
+    if (!error) await fetchEventTypes();
+    return { error: error?.message ?? null };
+  }
+
   return {
     eventTypes,
     addEventType,
     removeEventType,
     renameEventType,
     setOptional,
+    setPointWeight,
   };
 }
