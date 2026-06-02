@@ -36,6 +36,8 @@ function AtRiskPage() {
   const { getPollsForWeek, getResponse } = useWeeklyPolls();
   const { thresholds } = useRankThresholds();
   const [filter, setFilter] = useState<string | null>(null);
+  const { getEventPoints, eventMaxThisWeek } = useEventScoring();
+  const displayMax = MAX_TOTAL_POINTS + eventMaxThisWeek;
 
   const currentWeek = activeWeeks[0];
 
