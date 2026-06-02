@@ -59,7 +59,6 @@ const METRIC_CARDS: MetricCardSpec[] = [
   { key: "hqLevel", label: "Avg HQ Level" },
   { key: "rallyCap", label: "Avg Rally Cap" },
   { key: "allianceRecognition", label: "Alliance Recognition", unit: "%" },
-  { key: "avaWeeklyScore", label: "Avg AvA Rank", lowerIsBetter: true },
   { key: "pcHeroes", label: "Avg PC Heroes" },
   { key: "techPower", label: "Avg Tech Power", unit: "M" },
   { key: "vehiclePower", label: "Avg Vehicle Power", unit: "M" },
