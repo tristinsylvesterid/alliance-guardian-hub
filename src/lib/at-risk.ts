@@ -23,6 +23,8 @@ export interface WeekContext {
   svsActive: boolean;
   /** Whether the member was marked attending SvS this week */
   svsAttended: boolean;
+  /** Whether any member has been marked attending SvS this week (i.e. attendance has started being recorded) */
+  svsAttendanceRecorded: boolean;
   /** Whether AvA is toggled on this week */
   avaActive: boolean;
   /** AvA rank this week (0/null = no rank entered) */
@@ -31,7 +33,7 @@ export interface WeekContext {
 
 export const RISK_INDICATORS = [
   { key: "alliance_recognition", label: "Alliance Recognition <100%" },
-  { key: "ava_weak", label: "AvA missing or ≥50" },
+  { key: "ava_weak", label: "AvA rank ≥50" },
   { key: "zero_participation", label: "Zero weekly participation" },
   { key: "missed_svs", label: "Missed SvS" },
   { key: "low_score", label: "Overall score in R1 range" },
@@ -56,13 +58,7 @@ export function evaluateMemberRisk(member: Member, ctx: WeekContext): RiskFlag[]
 
   if (ctx.avaActive) {
     const ava = ctx.avaRank ?? 0;
-    if (ava === 0) {
-      flags.push({
-        key: "ava_weak",
-        label: "No AvA rank",
-        severity: "medium",
-      });
-    } else if (ava >= 50) {
+    if (ava >= 50) {
       flags.push({
         key: "ava_weak",
         label: `AvA rank #${ava}`,
@@ -83,7 +79,8 @@ export function evaluateMemberRisk(member: Member, ctx: WeekContext): RiskFlag[]
     });
   }
 
-  if (ctx.svsActive && !ctx.svsAttended) {
+  // Only flag missed SvS once attendance has started being recorded for the week
+  if (ctx.svsActive && ctx.svsAttendanceRecorded && !ctx.svsAttended) {
     flags.push({
       key: "missed_svs",
       label: "Missed SvS",
