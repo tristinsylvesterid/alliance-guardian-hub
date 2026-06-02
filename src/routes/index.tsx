@@ -66,7 +66,7 @@ function Dashboard() {
               <TrendingUp className="h-4 w-4 text-gold" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{avgScore} <span className="text-sm text-muted-foreground">/ {MAX_TOTAL_POINTS}</span></div>
+              <div className="text-2xl font-bold text-foreground">{avgScore} <span className="text-sm text-muted-foreground">/ {displayMax}</span></div>
             </CardContent>
           </Card>
           <Card>
