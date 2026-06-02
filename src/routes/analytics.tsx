@@ -262,7 +262,6 @@ function AnalyticsPage() {
   }, [allWeeksSorted, history]);
 
   // -------- AvA performance (per-week ranks pulled from event_attendance) --------
-  const { getValue: getEventValue } = useWeeklyEvents();
   const avaSeries = useMemo(() => {
     return allWeeksSorted.map((w) => {
       const ranks: number[] = [];
