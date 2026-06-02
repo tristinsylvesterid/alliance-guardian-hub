@@ -58,13 +58,7 @@ export function evaluateMemberRisk(member: Member, ctx: WeekContext): RiskFlag[]
 
   if (ctx.avaActive) {
     const ava = ctx.avaRank ?? 0;
-    if (ava === 0) {
-      flags.push({
-        key: "ava_weak",
-        label: "No AvA rank",
-        severity: "medium",
-      });
-    } else if (ava >= 50) {
+    if (ava >= 50) {
       flags.push({
         key: "ava_weak",
         label: `AvA rank #${ava}`,
@@ -85,7 +79,8 @@ export function evaluateMemberRisk(member: Member, ctx: WeekContext): RiskFlag[]
     });
   }
 
-  if (ctx.svsActive && !ctx.svsAttended) {
+  // Only flag missed SvS once attendance has started being recorded for the week
+  if (ctx.svsActive && ctx.svsAttendanceRecorded && !ctx.svsAttended) {
     flags.push({
       key: "missed_svs",
       label: "Missed SvS",
