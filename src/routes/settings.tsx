@@ -30,7 +30,7 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const { eventTypes, addEventType, removeEventType } = useEventTypes();
+  const { eventTypes, addEventType, removeEventType, setPointWeight } = useEventTypes();
   const { metrics, maxTotal, updateBracket, addBracket, removeBracket, recalcMaxPoints } = useScoringConfig();
   const { thresholds, updateThreshold } = useRankThresholds();
   const { members } = useMembers();
