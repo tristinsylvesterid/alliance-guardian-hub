@@ -30,7 +30,7 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const { eventTypes, addEventType, removeEventType } = useEventTypes();
+  const { eventTypes, addEventType, removeEventType, setPointWeight } = useEventTypes();
   const { metrics, maxTotal, updateBracket, addBracket, removeBracket, recalcMaxPoints } = useScoringConfig();
   const { thresholds, updateThreshold } = useRankThresholds();
   const { members } = useMembers();
@@ -297,16 +297,40 @@ function SettingsPage() {
                       <Badge variant="secondary" className="text-xs">SvS Toggle</Badge>
                     )}
                   </div>
-                  {!e.hasSvsToggle && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-destructive/60 hover:text-destructive"
-                      onClick={() => removeEventType(e.key)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {e.inputType === "rank" ? (
+                      <span className="text-xs text-muted-foreground">Bracket-scored (edit above)</span>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-muted-foreground" htmlFor={`pw-${e.key}`}>Points</label>
+                        <Input
+                          id={`pw-${e.key}`}
+                          type="number"
+                          min={0}
+                          step={1}
+                          defaultValue={e.pointWeight}
+                          className="h-8 w-20"
+                          onBlur={async (ev) => {
+                            const v = Number(ev.target.value);
+                            if (!Number.isFinite(v) || v === e.pointWeight) return;
+                            const { error } = await setPointWeight(e.key, v);
+                            if (error) toast.error(error);
+                            else toast.success(`${e.name} set to ${Math.max(0, Math.round(v))} pts`);
+                          }}
+                        />
+                      </div>
+                    )}
+                    {!e.hasSvsToggle && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive/60 hover:text-destructive"
+                        onClick={() => removeEventType(e.key)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
