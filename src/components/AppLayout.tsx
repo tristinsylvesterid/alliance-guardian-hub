@@ -1,11 +1,12 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Trophy, Calendar, Settings, Shield, Archive, CalendarClock, Swords, UserCog, LogOut, ScrollText, AlertTriangle, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, Trophy, Calendar, Settings, Shield, Archive, CalendarClock, Swords, UserCog, LogOut, ScrollText, AlertTriangle, BarChart3, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/members", label: "Members", icon: Users },
   { to: "/rankings", label: "Rankings", icon: Trophy },
+  { to: "/rank-changes", label: "Rank Changes", icon: TrendingUp },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/at-risk", label: "At Risk", icon: AlertTriangle },
   { to: "/events", label: "Events", icon: Calendar },
