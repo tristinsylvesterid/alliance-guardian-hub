@@ -23,6 +23,8 @@ export interface WeekContext {
   svsActive: boolean;
   /** Whether the member was marked attending SvS this week */
   svsAttended: boolean;
+  /** Whether any member has been marked attending SvS this week (i.e. attendance has started being recorded) */
+  svsAttendanceRecorded: boolean;
   /** Whether AvA is toggled on this week */
   avaActive: boolean;
   /** AvA rank this week (0/null = no rank entered) */
