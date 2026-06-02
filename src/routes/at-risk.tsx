@@ -88,7 +88,7 @@ function AtRiskPage() {
         if (b.flags.length !== a.flags.length) return b.flags.length - a.flags.length;
         return a.name.localeCompare(b.name);
       });
-  }, [members, eventTypes, currentWeek, isEventActive, getStatus, getValue, getPollsForWeek, getResponse, thresholds]);
+  }, [members, eventTypes, currentWeek, isEventActive, getStatus, getValue, getPollsForWeek, getResponse, thresholds, getEventPoints]);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
