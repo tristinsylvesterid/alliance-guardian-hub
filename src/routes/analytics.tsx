@@ -120,7 +120,7 @@ function AnalyticsPage() {
   const { history } = useMetricsHistory();
   const { metrics: scoringMetrics, maxTotal } = useScoringConfig();
   const { thresholds } = useRankThresholds();
-  const { activeWeeks, archivedWeeks, getStatus } = useWeeklyEvents();
+  const { activeWeeks, archivedWeeks, getStatus, getValue: getEventValue } = useWeeklyEvents();
   const { eventTypes } = useEventTypes();
 
   const [weeksWindow, setWeeksWindow] = useState<number>(12);
