@@ -14,7 +14,8 @@ import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
 import { useWeeklyPolls } from "@/hooks/use-weekly-polls";
-import { calculateTotalScore, getRank, METRIC_DEFINITIONS, calculateMetricPoints } from "@/lib/scoring";
+import { calculateTotalScore, getRank, calculateMetricPoints, AVA_METRIC, MAX_TOTAL_POINTS } from "@/lib/scoring";
+import { useEventScoring } from "@/hooks/use-event-scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { Check, X, Minus, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { ImportScreenshotsDialog } from "@/components/ImportScreenshotsDialog";
@@ -35,14 +36,8 @@ function StatusIcon({ status }: { status: EventStatus }) {
   return <X className="inline h-4 w-4 text-destructive/60" />;
 }
 
-// Map event type keys to metric keys for auto-updating member profiles
-const EVENT_TO_METRIC: Record<string, string> = {
-  svs: "svsParticipation",
-  ava: "avaWeeklyScore",
-};
-
 function EventsPage() {
-  const { members: rawMembers, updateMemberMetrics } = useMembers();
+  const { members: rawMembers } = useMembers();
   const { eventTypes: rawEventTypes } = useEventTypes();
   const EVENT_ORDER = ["ice_pit_1", "glory_war", "ice_pit_2", "ice_pit_3", "capital", "svs", "ava"];
   const eventTypes = [...rawEventTypes].sort((a, b) => {
@@ -53,9 +48,10 @@ function EventsPage() {
     if (bi === -1) return -1;
     return ai - bi;
   });
-  const { activeWeeks, getStatus, getValue, setStatus, toggleSvs, isEventActive, setEventActive, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
+  const { activeWeeks, getStatus, getValue, setStatus, isEventActive, setEventActive, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
   const { getPollsForWeek, addPoll, removePoll, getResponse, setResponse } = useWeeklyPolls();
   const { thresholds } = useRankThresholds();
+  const { getEventPoints } = useEventScoring();
   const [newPollName, setNewPollName] = useState("");
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
 
@@ -64,44 +60,20 @@ function EventsPage() {
   const isCurrentWeek = selectedWeekId === activeWeeks[0]?.weekId;
 
   const members = rawMembers.map((m) => {
-    const score = calculateTotalScore(m.metrics);
-    const rank = getRank(score, m.leadershipRank, thresholds);
+    const base = calculateTotalScore(m.metrics);
+    const ev = getEventPoints(m.id);
+    const score = base + ev.earned;
+    const rank = getRank(score, m.leadershipRank, thresholds, MAX_TOTAL_POINTS + ev.max);
     return { ...m, score, rank };
   });
 
   async function handleStatusChange(memberId: string, eventKey: string, newStatus: EventStatus) {
     await setStatus(selectedWeekId, memberId, eventKey, newStatus);
-
-    if (eventKey === "svs") {
-      const member = rawMembers.find((m) => m.id === memberId);
-      if (member) {
-        await updateMemberMetrics(memberId, {
-          ...member.metrics,
-          svsParticipation: newStatus === "check",
-        });
-      }
-    }
   }
 
   async function handleRankChange(memberId: string, eventKey: string, rankValue: number | null) {
     const status: EventStatus = rankValue !== null && rankValue > 0 ? "check" : "x";
     await setStatus(selectedWeekId, memberId, eventKey, status, rankValue);
-
-    // Auto-update member metric
-    const metricKey = EVENT_TO_METRIC[eventKey];
-    if (metricKey) {
-      const member = rawMembers.find((m) => m.id === memberId);
-      if (member) {
-        await updateMemberMetrics(memberId, {
-          ...member.metrics,
-          [metricKey]: rankValue ?? 0,
-        });
-      }
-    }
-  }
-
-  function handleSvsToggle(active: boolean) {
-    toggleSvs(selectedWeekId, active);
   }
 
   function handleStartNewWeek() {
@@ -112,8 +84,9 @@ function EventsPage() {
     setSelectedWeekId(activeWeeks[0].weekId);
   }
 
-  // Get AvA metric definition for displaying points
-  const avaMetric = METRIC_DEFINITIONS.find((m) => m.key === "avaWeeklyScore");
+  // AvA bracket scoring (per-event, not a member metric)
+  const avaMetric = AVA_METRIC;
+
 
   return (
     <AppLayout>
