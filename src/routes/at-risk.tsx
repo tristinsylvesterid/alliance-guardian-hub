@@ -194,7 +194,7 @@ function AtRiskPage() {
                           <TableCell><RankBadge rank={m.rank} /></TableCell>
                           <TableCell className="text-muted-foreground">
                             <span className="text-gold font-semibold">{m.score}</span>
-                            <span className="text-xs">/{MAX_TOTAL_POINTS}</span>
+                            <span className="text-xs">/{displayMax}</span>
                           </TableCell>
                           <TableCell>
                             <span className="font-heading text-sm text-gold">{m.flags.length}</span>
