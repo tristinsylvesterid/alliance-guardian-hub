@@ -9,11 +9,12 @@ import { RankBadge } from "@/components/RankBadge";
 import { MemberFormDialog } from "@/components/MemberFormDialog";
 import { ArchiveConfirmDialog } from "@/components/ArchiveConfirmDialog";
 import { type Member } from "@/lib/mock-data";
-import { calculateTotalScore, getRank, METRIC_DEFINITIONS } from "@/lib/scoring";
+import { calculateTotalScore, getRank, METRIC_DEFINITIONS, MAX_TOTAL_POINTS } from "@/lib/scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useMembers } from "@/hooks/use-members";
 import { useMemberNameHistory } from "@/hooks/use-member-name-history";
+import { useEventScoring } from "@/hooks/use-event-scoring";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Search, Plus, Pencil, History } from "lucide-react";
 
@@ -36,10 +37,13 @@ function MembersPage() {
   const { archiveMember } = useArchivedMembers();
   const { thresholds } = useRankThresholds();
   const { getHistoryFor, memberMatchesPreviousName } = useMemberNameHistory();
+  const { getEventPoints } = useEventScoring();
 
   const membersWithScores = members.map((m) => {
-    const score = calculateTotalScore(m.metrics);
-    const rank = getRank(score, m.leadershipRank, thresholds);
+    const base = calculateTotalScore(m.metrics);
+    const ev = getEventPoints(m.id);
+    const score = base + ev.earned;
+    const rank = getRank(score, m.leadershipRank, thresholds, MAX_TOTAL_POINTS + ev.max);
     return { ...m, score, rank };
   });
 

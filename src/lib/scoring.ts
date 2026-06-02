@@ -65,19 +65,6 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     ],
   },
   {
-    key: "avaWeeklyScore",
-    name: "AvA Weekly Score",
-    type: "rank",
-    unit: "rank",
-    maxPoints: 4,
-    brackets: [
-      { label: "Top 30", points: 4, min: 1, max: 30 },
-      { label: "31-50", points: 3, min: 31, max: 50 },
-      { label: "51-70", points: 1, min: 51, max: 70 },
-      { label: "71+", points: 0, min: 71 },
-    ],
-  },
-  {
     key: "pcHeroes",
     name: "PC Heroes",
     type: "number",
@@ -116,16 +103,6 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     ],
   },
   {
-    key: "svsParticipation",
-    name: "SvS Participation",
-    type: "boolean",
-    maxPoints: 3,
-    brackets: [
-      { label: "Yes", points: 3, condition: "yes" },
-      { label: "No", points: 0, condition: "no" },
-    ],
-  },
-  {
     key: "killCount",
     name: "Kill Count",
     type: "number",
@@ -137,8 +114,25 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
       { label: "<1M", points: 0, max: 0.99 },
     ],
   },
-
 ];
+
+/**
+ * AvA rank-bracket definition. AvA is now sourced from per-week event attendance
+ * (not member.metrics), but its bracket scoring logic still lives here.
+ */
+export const AVA_METRIC: MetricDefinition = {
+  key: "avaWeeklyScore",
+  name: "AvA Weekly Score",
+  type: "rank",
+  unit: "rank",
+  maxPoints: 4,
+  brackets: [
+    { label: "Top 30", points: 4, min: 1, max: 30 },
+    { label: "31-50", points: 3, min: 31, max: 50 },
+    { label: "51-70", points: 1, min: 51, max: 70 },
+    { label: "71+", points: 0, min: 71 },
+  ],
+};
 
 export const MAX_TOTAL_POINTS = METRIC_DEFINITIONS.reduce((sum, m) => sum + m.maxPoints, 0);
 
@@ -183,6 +177,39 @@ export function calculateTotalScore(metrics: Record<string, number | boolean | s
     if (val === undefined || val === null) return total;
     return total + calculateMetricPoints(def, val);
   }, 0);
+}
+
+/**
+ * Per-week event attendance scoring. A toggled-off event contributes 0 to BOTH
+ * earned and max — keeping the rank percent fair. Status events award their
+ * full point_weight when status === "check". AvA (rank input) uses AVA_METRIC
+ * bracket scoring on its rank value.
+ */
+export interface EventPointSource {
+  key: string;
+  inputType: "status" | "rank";
+  pointWeight: number;
+  isActive: boolean;
+  status?: string;
+  value?: number | null;
+}
+
+export function calculateEventPoints(sources: EventPointSource[]): { earned: number; max: number } {
+  let earned = 0;
+  let max = 0;
+  for (const s of sources) {
+    if (!s.isActive) continue;
+    if (s.inputType === "rank") {
+      max += AVA_METRIC.maxPoints;
+      if (s.value && s.value > 0) {
+        earned += calculateMetricPoints(AVA_METRIC, s.value);
+      }
+    } else {
+      max += s.pointWeight;
+      if (s.status === "check") earned += s.pointWeight;
+    }
+  }
+  return { earned, max };
 }
 
 export interface RankThresholdEntry {

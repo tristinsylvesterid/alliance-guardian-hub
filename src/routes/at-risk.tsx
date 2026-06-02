@@ -10,6 +10,7 @@ import { useWeeklyEvents } from "@/hooks/use-weekly-events";
 import { useWeeklyPolls } from "@/hooks/use-weekly-polls";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { calculateTotalScore, getRank, MAX_TOTAL_POINTS } from "@/lib/scoring";
+import { useEventScoring } from "@/hooks/use-event-scoring";
 import {
   evaluateMemberRisk,
   severityRank,
@@ -35,6 +36,8 @@ function AtRiskPage() {
   const { getPollsForWeek, getResponse } = useWeeklyPolls();
   const { thresholds } = useRankThresholds();
   const [filter, setFilter] = useState<string | null>(null);
+  const { getEventPoints, eventMaxThisWeek } = useEventScoring();
+  const displayMax = MAX_TOTAL_POINTS + eventMaxThisWeek;
 
   const currentWeek = activeWeeks[0];
 
@@ -71,8 +74,10 @@ function AtRiskPage() {
           avaRank,
         });
 
-        const score = calculateTotalScore(m.metrics);
-        const rank = getRank(score, m.leadershipRank, thresholds);
+        const base = calculateTotalScore(m.metrics);
+        const ev = getEventPoints(m.id);
+        const score = base + ev.earned;
+        const rank = getRank(score, m.leadershipRank, thresholds, MAX_TOTAL_POINTS + ev.max);
         return { ...m, flags, score, rank, attended, totalOpps: activeEvents.length + polls.length };
       })
       .filter((m) => m.flags.length > 0)
@@ -83,7 +88,7 @@ function AtRiskPage() {
         if (b.flags.length !== a.flags.length) return b.flags.length - a.flags.length;
         return a.name.localeCompare(b.name);
       });
-  }, [members, eventTypes, currentWeek, isEventActive, getStatus, getValue, getPollsForWeek, getResponse, thresholds]);
+  }, [members, eventTypes, currentWeek, isEventActive, getStatus, getValue, getPollsForWeek, getResponse, thresholds, getEventPoints]);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
@@ -189,7 +194,7 @@ function AtRiskPage() {
                           <TableCell><RankBadge rank={m.rank} /></TableCell>
                           <TableCell className="text-muted-foreground">
                             <span className="text-gold font-semibold">{m.score}</span>
-                            <span className="text-xs">/{MAX_TOTAL_POINTS}</span>
+                            <span className="text-xs">/{displayMax}</span>
                           </TableCell>
                           <TableCell>
                             <span className="font-heading text-sm text-gold">{m.flags.length}</span>

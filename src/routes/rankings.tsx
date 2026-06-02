@@ -6,6 +6,7 @@ import { useMembers } from "@/hooks/use-members";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
 import { calculateTotalScore, getRank, calculateMetricPoints, type Rank } from "@/lib/scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
+import { useEventScoring } from "@/hooks/use-event-scoring";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/rankings")({
@@ -20,12 +21,16 @@ export const Route = createFileRoute("/rankings")({
 
 function RankingsPage() {
   const { members } = useMembers();
-  const { metrics: METRIC_DEFINITIONS, maxTotal: MAX_TOTAL_POINTS } = useScoringConfig();
+  const { metrics: METRIC_DEFINITIONS, maxTotal: BASE_MAX_POINTS } = useScoringConfig();
   const { thresholds } = useRankThresholds();
+  const { getEventPoints, eventMaxThisWeek } = useEventScoring();
+  const MAX_TOTAL_POINTS = BASE_MAX_POINTS + eventMaxThisWeek;
 
   const membersWithScores = members.map((m) => {
-    const score = calculateTotalScore(m.metrics);
-    const rank = getRank(score, m.leadershipRank, thresholds);
+    const base = calculateTotalScore(m.metrics);
+    const ev = getEventPoints(m.id);
+    const score = base + ev.earned;
+    const rank = getRank(score, m.leadershipRank, thresholds, BASE_MAX_POINTS + ev.max);
     const breakdown = METRIC_DEFINITIONS.map((def) => ({
       metric: def.name,
       maxPoints: def.maxPoints,
