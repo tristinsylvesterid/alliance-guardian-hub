@@ -7,6 +7,7 @@ export interface EventType {
   hasSvsToggle?: boolean;
   isOptional?: boolean;
   inputType: "status" | "rank";
+  pointWeight: number;
 }
 
 export function useEventTypes() {
@@ -21,6 +22,7 @@ export function useEventTypes() {
         hasSvsToggle: r.has_svs_toggle,
         isOptional: (r as any).is_optional ?? false,
         inputType: (r as any).input_type === "rank" ? "rank" : "status",
+        pointWeight: (r as any).point_weight ?? 1,
       })));
     }
   }, []);
