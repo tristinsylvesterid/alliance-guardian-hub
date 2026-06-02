@@ -261,15 +261,14 @@ function AnalyticsPage() {
     });
   }, [allWeeksSorted, history]);
 
-  // -------- AvA performance --------
+  // -------- AvA performance (per-week ranks pulled from event_attendance) --------
+  const { getValue: getEventValue } = useWeeklyEvents();
   const avaSeries = useMemo(() => {
     return allWeeksSorted.map((w) => {
       const ranks: number[] = [];
       const buckets = { "Top 30": 0, "31-50": 0, "51-70": 0, "71+": 0 };
       for (const m of members) {
-        const val = m.metrics.avaWeeklyScore;
-        const n = pickNumber(val);
-        // Only count if a status entry exists this week (best-effort: just use current)
+        const n = getEventValue(w.weekId, m.id, "ava");
         if (n === null || n === 0) continue;
         ranks.push(n);
         if (n <= 30) buckets["Top 30"]++;
@@ -277,15 +276,13 @@ function AnalyticsPage() {
         else if (n <= 70) buckets["51-70"]++;
         else buckets["71+"]++;
       }
-      // Approximate (current value applied per week until real per-week storage)
-      void w;
       return {
         week: w.label,
         "Avg Rank": ranks.length ? Math.round(avgOf(ranks) * 10) / 10 : 0,
         ...buckets,
       };
     });
-  }, [allWeeksSorted, members]);
+  }, [allWeeksSorted, members, getEventValue]);
 
   // -------- Member drilldown --------
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
