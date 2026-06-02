@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SvsPlanningRouteImport } from './routes/svs-planning'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RankingsRouteImport } from './routes/rankings'
+import { Route as RankChangesRouteImport } from './routes/rank-changes'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as EventsRouteImport } from './routes/events'
@@ -36,6 +37,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const RankingsRoute = RankingsRouteImport.update({
   id: '/rankings',
   path: '/rankings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RankChangesRoute = RankChangesRouteImport.update({
+  id: '/rank-changes',
+  path: '/rank-changes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MembersRoute = MembersRouteImport.update({
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof EventsRoute
   '/login': typeof LoginRoute
   '/members': typeof MembersRoute
+  '/rank-changes': typeof RankChangesRoute
   '/rankings': typeof RankingsRoute
   '/settings': typeof SettingsRoute
   '/svs-planning': typeof SvsPlanningRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/events': typeof EventsRoute
   '/login': typeof LoginRoute
   '/members': typeof MembersRoute
+  '/rank-changes': typeof RankChangesRoute
   '/rankings': typeof RankingsRoute
   '/settings': typeof SettingsRoute
   '/svs-planning': typeof SvsPlanningRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/events': typeof EventsRoute
   '/login': typeof LoginRoute
   '/members': typeof MembersRoute
+  '/rank-changes': typeof RankChangesRoute
   '/rankings': typeof RankingsRoute
   '/settings': typeof SettingsRoute
   '/svs-planning': typeof SvsPlanningRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/login'
     | '/members'
+    | '/rank-changes'
     | '/rankings'
     | '/settings'
     | '/svs-planning'
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/login'
     | '/members'
+    | '/rank-changes'
     | '/rankings'
     | '/settings'
     | '/svs-planning'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/login'
     | '/members'
+    | '/rank-changes'
     | '/rankings'
     | '/settings'
     | '/svs-planning'
@@ -194,6 +206,7 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRoute
   LoginRoute: typeof LoginRoute
   MembersRoute: typeof MembersRoute
+  RankChangesRoute: typeof RankChangesRoute
   RankingsRoute: typeof RankingsRoute
   SettingsRoute: typeof SettingsRoute
   SvsPlanningRoute: typeof SvsPlanningRoute
@@ -220,6 +233,13 @@ declare module '@tanstack/react-router' {
       path: '/rankings'
       fullPath: '/rankings'
       preLoaderRoute: typeof RankingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rank-changes': {
+      id: '/rank-changes'
+      path: '/rank-changes'
+      fullPath: '/rank-changes'
+      preLoaderRoute: typeof RankChangesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/members': {
@@ -306,6 +326,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRoute,
   LoginRoute: LoginRoute,
   MembersRoute: MembersRoute,
+  RankChangesRoute: RankChangesRoute,
   RankingsRoute: RankingsRoute,
   SettingsRoute: SettingsRoute,
   SvsPlanningRoute: SvsPlanningRoute,
