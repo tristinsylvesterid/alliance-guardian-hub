@@ -45,7 +45,8 @@ interface PriorSnapshot {
 
 function RankChangesPage() {
   const { members } = useMembers();
-  const { maxTotal: BASE_MAX_POINTS } = useScoringConfig();
+  const { maxTotal: BASE_MAX_POINTS, metrics: scoringMetrics } = useScoringConfig();
+  const avaMetric = scoringMetrics.find((m) => m.key === "avaWeeklyScore") ?? AVA_METRIC;
   const { thresholds } = useRankThresholds();
   const { eventTypes } = useEventTypes();
   const { activeWeeks, archivedWeeks, isEventActive, getStatus, getValue } = useWeeklyEvents();
