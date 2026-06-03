@@ -115,7 +115,7 @@ function RankChangesPage() {
       }));
       return calculateEventPoints(sources, avaMetric);
     };
-  }, [priorWeek, eventTypes, isEventActive, getStatus, getValue]);
+  }, [priorWeek, eventTypes, isEventActive, getStatus, getValue, avaMetric]);
 
   const rows = useMemo(() => {
     if (!currentWeek) return [];
