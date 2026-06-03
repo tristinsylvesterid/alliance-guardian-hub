@@ -194,15 +194,18 @@ export interface EventPointSource {
   value?: number | null;
 }
 
-export function calculateEventPoints(sources: EventPointSource[]): { earned: number; max: number } {
+export function calculateEventPoints(
+  sources: EventPointSource[],
+  avaMetric: MetricDefinition = AVA_METRIC,
+): { earned: number; max: number } {
   let earned = 0;
   let max = 0;
   for (const s of sources) {
     if (!s.isActive) continue;
     if (s.inputType === "rank") {
-      max += AVA_METRIC.maxPoints;
+      max += avaMetric.maxPoints;
       if (s.value && s.value > 0) {
-        earned += calculateMetricPoints(AVA_METRIC, s.value);
+        earned += calculateMetricPoints(avaMetric, s.value);
       }
     } else {
       max += s.pointWeight;
