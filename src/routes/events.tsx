@@ -17,6 +17,7 @@ import { useWeeklyPolls } from "@/hooks/use-weekly-polls";
 import { calculateTotalScore, getRank, calculateMetricPoints, AVA_METRIC, MAX_TOTAL_POINTS } from "@/lib/scoring";
 import { useEventScoring } from "@/hooks/use-event-scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
+import { useScoringConfig } from "@/hooks/use-scoring-config";
 import { Check, X, Minus, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { ImportScreenshotsDialog } from "@/components/ImportScreenshotsDialog";
 
