@@ -113,7 +113,7 @@ function RankChangesPage() {
         status: getStatus(priorWeek.weekId, memberId, e.key),
         value: getValue(priorWeek.weekId, memberId, e.key),
       }));
-      return calculateEventPoints(sources);
+      return calculateEventPoints(sources, avaMetric);
     };
   }, [priorWeek, eventTypes, isEventActive, getStatus, getValue]);
 
