@@ -15,6 +15,7 @@ import { useEventTypes } from "@/hooks/use-event-types";
 import { useWeeklyEvents } from "@/hooks/use-weekly-events";
 import { useEventScoring } from "@/hooks/use-event-scoring";
 import {
+  AVA_METRIC,
   calculateEventPoints,
   calculateTotalScore,
   getRank,
