@@ -1,38 +1,25 @@
-# Refine At-Risk Flags
+## Problem
 
-Update `src/lib/at-risk.ts` (and pass the needed context from `src/routes/at-risk.tsx`) so flags only fire when the data is actually meaningful.
+The Tracked Events row for AvA shows the hint "Bracket-scored (edit above)", but the AvA bracket table is hardcoded in `src/lib/scoring.ts` (`AVA_METRIC`) and never appears in the Scoring Brackets card above. There is no actual edit UI.
 
-## Changes
+## Fix
 
-### 1. AvA flag — drop the "no rank" case
-In `evaluateMemberRisk`, remove the `ava === 0` branch. Only flag when an AvA rank is entered and is ≥ 50:
-- 50–70 → medium severity
-- 71+ → high severity
-- 0 / empty → no flag (it just means the week's rank hasn't been entered yet)
+Surface AvA in the existing Scoring Brackets table so it uses the same editor as every other metric.
 
-### 2. Missed SvS — only flag once attendance has started being recorded
-Add a new field to `WeekContext`:
-- `svsAttendanceRecorded: boolean` — true if at least one member has a `check` status for the SvS event this week.
+### Steps
 
-Flag `missed_svs` only when `ctx.svsActive && ctx.svsAttendanceRecorded && !ctx.svsAttended`. This way the flag stays dormant before SvS happens and lights up only after officers start marking attendance.
+1. **Migration** — insert a row into `scoring_config` for AvA:
+   - `key='avaWeeklyScore'`, `name='AvA Weekly Score'`, `type='rank'`, `unit='rank'`, `max_points=4`, `sort_order=99`
+   - `brackets`: the four current AVA_METRIC brackets (Top 30 = 4, 31–50 = 3, 51–70 = 1, 71+ = 0)
+   - Guarded with `ON CONFLICT (key) DO NOTHING` so re-running is safe.
 
-In `src/routes/at-risk.tsx`, compute `svsAttendanceRecorded` once for the week (any `event_attendance` row for the SvS event_type_key with `status === 'check'`) and pass it into every `evaluateMemberRisk` call.
+2. **`src/lib/scoring.ts`** — update `calculateEventPoints` to accept an optional `avaMetric: MetricDefinition` override (falls back to the hardcoded `AVA_METRIC` if not provided). Keep `AVA_METRIC` exported as the default.
 
-### 3. Keep the rest unchanged
-- `alliance_recognition`, `zero_participation`, `low_score`, `low_troops`, `low_hq` stay exactly as they are.
+3. **`src/hooks/use-event-scoring.ts`** (and any other caller of `calculateEventPoints`) — pass the AvA metric from `useScoringConfig().metrics` when available, so edits in Settings flow into per-week event scoring and rankings.
 
-## Updated flag list (after changes)
+4. **`src/routes/settings.tsx`** — no UI change needed; once AvA is in `scoring_config`, it appears in the Scoring Brackets table and reuses the existing "Edit Brackets" dialog. The "Bracket-scored (edit above)" hint becomes accurate.
 
-| Key | Trigger |
-|---|---|
-| `alliance_recognition` | AR < 100% |
-| `ava_weak` | AvA rank entered AND ≥ 50 |
-| `zero_participation` | Events/polls open, member did 0 of either |
-| `missed_svs` | SvS active, at least one check recorded for SvS, this member not checked |
-| `low_score` | Total score < 50% |
-| `low_troops` | Troops below T9 |
-| `low_hq` | HQ between 1 and 27 |
+### Out of scope
 
-## Out of scope
-- The `RISK_INDICATORS` constant label for `ava_weak` ("AvA missing or ≥50") will be updated to "AvA rank ≥50" for accuracy, but no new flag types are added.
-- No DB schema changes.
+- No change to ranking thresholds, at-risk flags, or the Tracked Events UI.
+- No schema change beyond the single seed insert.

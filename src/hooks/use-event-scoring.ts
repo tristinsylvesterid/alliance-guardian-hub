@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 import { useEventTypes } from "@/hooks/use-event-types";
 import { useWeeklyEvents } from "@/hooks/use-weekly-events";
-import { calculateEventPoints, type EventPointSource } from "@/lib/scoring";
+import { useScoringConfig } from "@/hooks/use-scoring-config";
+import { AVA_METRIC, calculateEventPoints, type EventPointSource } from "@/lib/scoring";
 
 /**
  * Returns a callable `(memberId) => { earned, max }` that scores a member's
@@ -12,6 +13,8 @@ import { calculateEventPoints, type EventPointSource } from "@/lib/scoring";
 export function useEventScoring() {
   const { eventTypes } = useEventTypes();
   const { activeWeeks, isEventActive, getStatus, getValue } = useWeeklyEvents();
+  const { metrics } = useScoringConfig();
+  const avaMetric = metrics.find((m) => m.key === "avaWeeklyScore") ?? AVA_METRIC;
   const currentWeek = activeWeeks[0] ?? null;
 
   const getEventPoints = useCallback(
@@ -25,16 +28,16 @@ export function useEventScoring() {
         status: getStatus(currentWeek.weekId, memberId, e.key),
         value: getValue(currentWeek.weekId, memberId, e.key),
       }));
-      return calculateEventPoints(sources);
+      return calculateEventPoints(sources, avaMetric);
     },
-    [currentWeek, eventTypes, isEventActive, getStatus, getValue],
+    [currentWeek, eventTypes, isEventActive, getStatus, getValue, avaMetric],
   );
 
   /** Max event points available this week, computed once (member-independent). */
   const eventMaxThisWeek = currentWeek
     ? eventTypes.reduce((sum, e) => {
         if (!isEventActive(currentWeek.weekId, e.key)) return sum;
-        if (e.inputType === "rank") return sum + 4; // AVA_METRIC.maxPoints
+        if (e.inputType === "rank") return sum + avaMetric.maxPoints;
         return sum + (e.pointWeight ?? 1);
       }, 0)
     : 0;

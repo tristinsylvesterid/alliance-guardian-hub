@@ -15,6 +15,7 @@ import { useEventTypes } from "@/hooks/use-event-types";
 import { useWeeklyEvents } from "@/hooks/use-weekly-events";
 import { useEventScoring } from "@/hooks/use-event-scoring";
 import {
+  AVA_METRIC,
   calculateEventPoints,
   calculateTotalScore,
   getRank,
@@ -44,7 +45,8 @@ interface PriorSnapshot {
 
 function RankChangesPage() {
   const { members } = useMembers();
-  const { maxTotal: BASE_MAX_POINTS } = useScoringConfig();
+  const { maxTotal: BASE_MAX_POINTS, metrics: scoringMetrics } = useScoringConfig();
+  const avaMetric = scoringMetrics.find((m) => m.key === "avaWeeklyScore") ?? AVA_METRIC;
   const { thresholds } = useRankThresholds();
   const { eventTypes } = useEventTypes();
   const { activeWeeks, archivedWeeks, isEventActive, getStatus, getValue } = useWeeklyEvents();
@@ -111,9 +113,9 @@ function RankChangesPage() {
         status: getStatus(priorWeek.weekId, memberId, e.key),
         value: getValue(priorWeek.weekId, memberId, e.key),
       }));
-      return calculateEventPoints(sources);
+      return calculateEventPoints(sources, avaMetric);
     };
-  }, [priorWeek, eventTypes, isEventActive, getStatus, getValue]);
+  }, [priorWeek, eventTypes, isEventActive, getStatus, getValue, avaMetric]);
 
   const rows = useMemo(() => {
     if (!currentWeek) return [];
