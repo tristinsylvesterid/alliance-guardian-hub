@@ -1,8 +1,19 @@
 ---
 name: Ranking System
-description: Weighted point system with tiered brackets per metric, class-based ranks (R1-R5), editable thresholds stored in DB
+description: Weighted point system with tiered brackets per metric, class-based ranks (R1-R5), editable thresholds stored in DB. Display surfaces show archived-week snapshots, not live in-progress totals.
 type: feature
 ---
+## Display model
+- Rankings, Dashboard, Members, At-Risk show scores/ranks from the **last archived week's** snapshot (fixed values + that week's event totals), NOT the live in-progress week.
+- Events page entry stays live (writes to active week).
+- Rank Changes compares the **two most recent archived weeks**.
+- Before any week is archived: pages show an empty placeholder ("archive a week from the Events page").
+
+## Archiving
+- Triggered by the "Archive Week" button on Events page, or auto when starting a 5th active week (oldest auto-archives).
+- `archiveWeek(weekId, ctx)` in `use-weekly-events.ts` snapshots every member to `member_metrics_history` with `source='auto_weekly'`, `week_id=<archived>`, `recorded_date=<week end>`, `total_score=base+events`, and `rank` against `BASE_MAX + eventMax`.
+- `useArchivedSnapshot()` reads the latest + previous archived week snapshots.
+
 ## Rank Classes
 - R1: ≤14 total points (default, editable via Settings)
 - R2: 15-25 total points (default, editable via Settings)
