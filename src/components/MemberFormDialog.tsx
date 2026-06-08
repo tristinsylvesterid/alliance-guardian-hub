@@ -19,7 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { METRIC_DEFINITIONS } from "@/lib/scoring";
+import { useScoringConfig } from "@/hooks/use-scoring-config";
+import type { MetricDefinition } from "@/lib/scoring";
 import type { Member } from "@/lib/mock-data";
 
 const METRIC_HELPERS: Record<string, { step: string; helper: string }> = {
@@ -41,11 +42,11 @@ interface MemberFormDialogProps {
   onArchive?: (member: Member) => void;
 }
 
-function getDefaultMetrics(): Record<string, number | boolean | string> {
+function getDefaultMetrics(defs: MetricDefinition[]): Record<string, number | boolean | string> {
   const m: Record<string, number | boolean | string> = {};
-  for (const def of METRIC_DEFINITIONS) {
+  for (const def of defs) {
     if (def.type === "boolean") m[def.key] = false;
-    else if (def.type === "tier") m[def.key] = "T8";
+    else if (def.type === "tier") m[def.key] = def.brackets[0]?.condition ?? "T8";
     else m[def.key] = 0;
   }
   return m;
@@ -53,9 +54,10 @@ function getDefaultMetrics(): Record<string, number | boolean | string> {
 
 export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive }: MemberFormDialogProps) {
   const isEdit = !!member;
+  const { metrics: metricDefs } = useScoringConfig();
   const [name, setName] = useState("");
   const [leadershipRank, setLeadershipRank] = useState<"" | "none" | "R4" | "R5">("");
-  const [metrics, setMetrics] = useState<Record<string, number | boolean | string>>(getDefaultMetrics());
+  const [metrics, setMetrics] = useState<Record<string, number | boolean | string>>({});
   const [power, setPower] = useState(0);
   const [locationX, setLocationX] = useState(0);
   const [locationY, setLocationY] = useState(0);
@@ -64,22 +66,23 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
   const nameHistory = member ? getHistoryFor(member.id) : [];
 
   useEffect(() => {
+    if (metricDefs.length === 0) return;
     if (member) {
       setName(member.name);
       setLeadershipRank(member.leadershipRank || "");
-      setMetrics({ ...getDefaultMetrics(), ...member.metrics });
+      setMetrics({ ...getDefaultMetrics(metricDefs), ...member.metrics });
       setPower(member.power ?? 0);
       setLocationX(member.locationX ?? 0);
       setLocationY(member.locationY ?? 0);
     } else {
       setName("");
       setLeadershipRank("");
-      setMetrics(getDefaultMetrics());
+      setMetrics(getDefaultMetrics(metricDefs));
       setPower(0);
       setLocationX(0);
       setLocationY(0);
     }
-  }, [member, open]);
+  }, [member, open, metricDefs]);
 
   function setMetric(key: string, value: number | boolean | string) {
     setMetrics((prev) => ({ ...prev, [key]: value }));
@@ -202,7 +205,7 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
           <div className="space-y-1">
             <h3 className="font-heading text-sm text-gold-muted uppercase tracking-wider">Metrics</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              {METRIC_DEFINITIONS.map((def) => (
+              {metricDefs.map((def) => (
                 <div key={def.key} className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">
                     {def.name} <span className="text-gold-muted">({def.maxPoints} pts max)</span>
