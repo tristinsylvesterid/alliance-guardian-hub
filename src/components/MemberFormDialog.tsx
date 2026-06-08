@@ -205,7 +205,7 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
           <div className="space-y-1">
             <h3 className="font-heading text-sm text-gold-muted uppercase tracking-wider">Metrics</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              {METRIC_DEFINITIONS.map((def) => (
+              {metricDefs.map((def) => (
                 <div key={def.key} className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">
                     {def.name} <span className="text-gold-muted">({def.maxPoints} pts max)</span>
