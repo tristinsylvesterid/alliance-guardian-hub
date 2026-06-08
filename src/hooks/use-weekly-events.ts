@@ -262,6 +262,7 @@ export function useWeeklyEvents() {
     toggleSvs,
     isEventActive,
     setEventActive,
+    hasAnyEntries,
 
     startNewWeek,
     deleteWeek,
