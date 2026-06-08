@@ -33,7 +33,6 @@ function AtRiskPage() {
   const { members } = useMembers();
   const { eventTypes } = useEventTypes();
   const { activeWeeks, getStatus, getValue, isEventActive } = useWeeklyEvents();
-  const { getPollsForWeek, getResponse } = useWeeklyPolls();
   const { thresholds } = useRankThresholds();
   const [filter, setFilter] = useState<string | null>(null);
   const { getEventPoints, eventMaxThisWeek } = useEventScoring();
@@ -45,7 +44,6 @@ function AtRiskPage() {
     if (!currentWeek) return [];
 
     const activeEvents = eventTypes.filter((e) => isEventActive(currentWeek.weekId, e.key));
-    const polls = getPollsForWeek(currentWeek.id);
     const svsActive = isEventActive(currentWeek.weekId, "svs");
     const avaActive = isEventActive(currentWeek.weekId, "ava");
 
@@ -60,18 +58,14 @@ function AtRiskPage() {
         for (const ev of activeEvents) {
           if (getStatus(currentWeek.weekId, m.id, ev.key) === "check") attended++;
         }
-        const pollResponses = polls.reduce(
-          (n, p) => n + (getResponse(p.id, m.id) ? 1 : 0),
-          0,
-        );
         const svsAttended = getStatus(currentWeek.weekId, m.id, "svs") === "check";
         const avaRank = getValue(currentWeek.weekId, m.id, "ava");
 
         const flags = evaluateMemberRisk(m, {
           activeEventCount: activeEvents.length,
           attendedEventCount: attended,
-          pollCount: polls.length,
-          pollResponseCount: pollResponses,
+          pollCount: 0,
+          pollResponseCount: 0,
           svsActive,
           svsAttended,
           svsAttendanceRecorded,
@@ -83,7 +77,7 @@ function AtRiskPage() {
         const ev = getEventPoints(m.id);
         const score = base + ev.earned;
         const rank = getRank(score, m.leadershipRank, thresholds, MAX_TOTAL_POINTS + ev.max);
-        return { ...m, flags, score, rank, attended, totalOpps: activeEvents.length + polls.length };
+        return { ...m, flags, score, rank, attended, totalOpps: activeEvents.length };
       })
       .filter((m) => m.flags.length > 0)
       .sort((a, b) => {
@@ -93,7 +87,7 @@ function AtRiskPage() {
         if (b.flags.length !== a.flags.length) return b.flags.length - a.flags.length;
         return a.name.localeCompare(b.name);
       });
-  }, [members, eventTypes, currentWeek, isEventActive, getStatus, getValue, getPollsForWeek, getResponse, thresholds, getEventPoints]);
+  }, [members, eventTypes, currentWeek, isEventActive, getStatus, getValue, thresholds, getEventPoints]);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
