@@ -32,12 +32,7 @@ export function useEventScoring() {
           value: getValue(currentWeek.weekId, memberId, e.key),
         };
       });
-      const result = calculateEventPoints(sources, avaMetric);
-      if (memberId === "aa93b85f-46d1-4c84-bedd-7f62b262ab61") {
-        // eslint-disable-next-line no-console
-        console.log("[event-scoring khaleesi]", { week: currentWeek.weekId, sources, result, avaMax: avaMetric.maxPoints });
-      }
-      return result;
+      return calculateEventPoints(sources, avaMetric);
     },
     [currentWeek, eventTypes, isEventActive, getStatus, getValue, hasAnyEntries, avaMetric],
   );
