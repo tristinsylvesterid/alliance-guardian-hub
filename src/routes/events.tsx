@@ -143,6 +143,38 @@ function EventsPage() {
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-gold/30 text-gold hover:bg-gold/10"
+                  disabled={!selectedWeekId}
+                  title="Finalize this week's scores and lock it"
+                >
+                  Archive Week
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Archive {selectedWeek?.label}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This freezes every member's score (fixed values + this week's events) as the current
+                    displayed rank across Rankings, Dashboard, Members and At-Risk. You can still view
+                    the week from the Event Archive afterwards, but attendance and events on it
+                    become read-only.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-gold text-background hover:bg-gold/90"
+                    onClick={handleArchiveSelected}
+                  >
+                    Archive
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
                 <Button variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10" disabled={!selectedWeekId}>
                   <Trash2 className="mr-2 h-4 w-4" /> Delete Week
                 </Button>
