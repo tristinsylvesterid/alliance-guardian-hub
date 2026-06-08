@@ -12,7 +12,7 @@ import { AVA_METRIC, calculateEventPoints, type EventPointSource } from "@/lib/s
  */
 export function useEventScoring() {
   const { eventTypes } = useEventTypes();
-  const { activeWeeks, isEventActive, getStatus, getValue } = useWeeklyEvents();
+  const { activeWeeks, isEventActive, getStatus, getValue, hasAnyEntries } = useWeeklyEvents();
   const { metrics } = useScoringConfig();
   const avaMetric = metrics.find((m) => m.key === "avaWeeklyScore") ?? AVA_METRIC;
   const currentWeek = activeWeeks[0] ?? null;
@@ -20,23 +20,28 @@ export function useEventScoring() {
   const getEventPoints = useCallback(
     (memberId: string) => {
       if (!currentWeek) return { earned: 0, max: 0 };
-      const sources: EventPointSource[] = eventTypes.map((e) => ({
-        key: e.key,
-        inputType: e.inputType,
-        pointWeight: e.pointWeight ?? 1,
-        isActive: isEventActive(currentWeek.weekId, e.key),
-        status: getStatus(currentWeek.weekId, memberId, e.key),
-        value: getValue(currentWeek.weekId, memberId, e.key),
-      }));
+      const sources: EventPointSource[] = eventTypes.map((e) => {
+        const toggledOn = isEventActive(currentWeek.weekId, e.key);
+        const hasEntries = hasAnyEntries(currentWeek.weekId, e.key, e.inputType);
+        return {
+          key: e.key,
+          inputType: e.inputType,
+          pointWeight: e.pointWeight ?? 1,
+          isActive: toggledOn && hasEntries,
+          status: getStatus(currentWeek.weekId, memberId, e.key),
+          value: getValue(currentWeek.weekId, memberId, e.key),
+        };
+      });
       return calculateEventPoints(sources, avaMetric);
     },
-    [currentWeek, eventTypes, isEventActive, getStatus, getValue, avaMetric],
+    [currentWeek, eventTypes, isEventActive, getStatus, getValue, hasAnyEntries, avaMetric],
   );
 
   /** Max event points available this week, computed once (member-independent). */
   const eventMaxThisWeek = currentWeek
     ? eventTypes.reduce((sum, e) => {
         if (!isEventActive(currentWeek.weekId, e.key)) return sum;
+        if (!hasAnyEntries(currentWeek.weekId, e.key, e.inputType)) return sum;
         if (e.inputType === "rank") return sum + avaMetric.maxPoints;
         return sum + (e.pointWeight ?? 1);
       }, 0)
