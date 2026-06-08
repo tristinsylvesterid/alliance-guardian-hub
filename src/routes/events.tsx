@@ -13,7 +13,7 @@ import { RankBadge } from "@/components/RankBadge";
 import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
-import { useWeeklyPolls } from "@/hooks/use-weekly-polls";
+
 import { calculateTotalScore, getRank, calculateMetricPoints, AVA_METRIC, MAX_TOTAL_POINTS } from "@/lib/scoring";
 import { useEventScoring } from "@/hooks/use-event-scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
