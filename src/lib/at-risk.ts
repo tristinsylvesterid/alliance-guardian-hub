@@ -1,5 +1,5 @@
 import type { Member } from "@/lib/mock-data";
-import { calculateTotalScore, MAX_TOTAL_POINTS } from "@/lib/scoring";
+import { calculateTotalScore, MAX_TOTAL_POINTS, type MetricDefinition } from "@/lib/scoring";
 
 export type RiskSeverity = "high" | "medium" | "low";
 
@@ -42,7 +42,7 @@ export const RISK_INDICATORS = [
   
 ] as const;
 
-export function evaluateMemberRisk(member: Member, ctx: WeekContext): RiskFlag[] {
+export function evaluateMemberRisk(member: Member, ctx: WeekContext, metricDefs?: MetricDefinition[], maxPoints?: number): RiskFlag[] {
   const flags: RiskFlag[] = [];
   const m = member.metrics;
 
@@ -88,8 +88,9 @@ export function evaluateMemberRisk(member: Member, ctx: WeekContext): RiskFlag[]
     });
   }
 
-  const score = calculateTotalScore(m);
-  const pct = MAX_TOTAL_POINTS > 0 ? (score / MAX_TOTAL_POINTS) * 100 : 0;
+  const score = calculateTotalScore(m, metricDefs);
+  const effectiveMax = maxPoints ?? MAX_TOTAL_POINTS;
+  const pct = effectiveMax > 0 ? (score / effectiveMax) * 100 : 0;
   if (pct < 50) {
     flags.push({
       key: "low_score",

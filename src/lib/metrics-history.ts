@@ -6,6 +6,7 @@ import {
   getRank,
   type RankThresholdEntry,
   type Rank,
+  type MetricDefinition,
 } from "@/lib/scoring";
 
 export type SnapshotSource = "baseline" | "edit" | "auto_weekly" | "manual";
@@ -18,6 +19,8 @@ interface SnapshotArgs {
   maxPoints?: number;
   /** Per-week event points to add into the snapshotted total_score. */
   eventBonus?: { earned: number; max: number };
+  /** Live metric definitions; falls back to hardcoded defaults when omitted. */
+  metricDefs?: MetricDefinition[];
 }
 
 /**
@@ -31,8 +34,9 @@ export async function snapshotMemberMetrics({
   thresholds,
   maxPoints,
   eventBonus,
+  metricDefs,
 }: SnapshotArgs) {
-  const baseScore = calculateTotalScore(member.metrics);
+  const baseScore = calculateTotalScore(member.metrics, metricDefs);
   const totalScore = baseScore + (eventBonus?.earned ?? 0);
   const effectiveMax = (maxPoints ?? undefined) !== undefined
     ? (maxPoints as number) + (eventBonus?.max ?? 0)
@@ -65,9 +69,10 @@ export async function snapshotAllMembers(
   weekId?: string | null,
   thresholds?: RankThresholdEntry[],
   maxPoints?: number,
+  metricDefs?: MetricDefinition[],
 ) {
   // Sequential to keep request bursts modest; dataset is ~100 rows.
   for (const m of members) {
-    await snapshotMemberMetrics({ member: m, source, weekId: weekId ?? null, thresholds, maxPoints });
+    await snapshotMemberMetrics({ member: m, source, weekId: weekId ?? null, thresholds, maxPoints, metricDefs });
   }
 }
