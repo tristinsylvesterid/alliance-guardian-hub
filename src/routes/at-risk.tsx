@@ -10,8 +10,8 @@ import { useWeeklyEvents } from "@/hooks/use-weekly-events";
 
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
-import { calculateTotalScore, getRank } from "@/lib/scoring";
-import { useEventScoring } from "@/hooks/use-event-scoring";
+import { type Rank } from "@/lib/scoring";
+import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
 import {
   evaluateMemberRisk,
   severityRank,
