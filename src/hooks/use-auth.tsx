@@ -18,6 +18,19 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+function clearStoredAuthSession() {
+  if (typeof window === "undefined") return;
+
+  for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+    const key = localStorage.key(i);
+    if (key?.startsWith("sb-") && key.includes("auth-token")) {
+      localStorage.removeItem(key);
+    }
+  }
+
+  localStorage.removeItem("supabase.auth.token");
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -109,8 +122,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchRoles, fetchProfile, initialized]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    clearStoredAuthSession();
+    await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error: error?.message ?? null };
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : "Unable to reach the login service",
+      };
+    }
   }, []);
 
   const signOut = useCallback(async () => {

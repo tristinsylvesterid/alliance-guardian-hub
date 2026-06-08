@@ -38,7 +38,11 @@ function LoginPage() {
     setSubmitting(true);
     const { error: err } = await signIn(usernameToEmail(username), password);
     if (err) {
-      setError("Invalid username or password");
+      setError(
+        err === "Failed to fetch"
+          ? "Login service could not be reached. Please refresh and try again."
+          : err
+      );
       setSubmitting(false);
     } else {
       navigate({ to: "/" });
