@@ -42,6 +42,17 @@ function SettingsPage() {
   const [editingThresholds, setEditingThresholds] = useState(false);
   const [localThresholds, setLocalThresholds] = useState<Array<{ rankKey: string; minPercent: number; maxPercent: number | null }>>([]);
 
+  // One-time backfill: if any metric's stored max_points is stale vs its brackets, recompute it.
+  const backfilledRef = useRef(false);
+  useEffect(() => {
+    if (backfilledRef.current || metrics.length === 0) return;
+    backfilledRef.current = true;
+    metrics.forEach((m) => {
+      const actualMax = Math.max(...m.brackets.map((b) => b.points), 0);
+      if (actualMax !== m.maxPoints) recalcMaxPoints(m.key);
+    });
+  }, [metrics, recalcMaxPoints]);
+
 
   // Local bracket edit state
   const editMetricDef = metrics.find((m) => m.key === editingMetric);
