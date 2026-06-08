@@ -21,6 +21,12 @@ interface SnapshotArgs {
   eventBonus?: { earned: number; max: number };
   /** Live metric definitions; falls back to hardcoded defaults when omitted. */
   metricDefs?: MetricDefinition[];
+  /**
+   * Override the YYYY-MM-DD recorded_date used for the dedup key.
+   * When archiving a past week, we use that week's end date so multiple
+   * same-day archives don't overwrite each other.
+   */
+  recordedDate?: string;
 }
 
 /**
@@ -35,6 +41,7 @@ export async function snapshotMemberMetrics({
   maxPoints,
   eventBonus,
   metricDefs,
+  recordedDate,
 }: SnapshotArgs) {
   const baseScore = calculateTotalScore(member.metrics, metricDefs);
   const totalScore = baseScore + (eventBonus?.earned ?? 0);
@@ -42,7 +49,7 @@ export async function snapshotMemberMetrics({
     ? (maxPoints as number) + (eventBonus?.max ?? 0)
     : undefined;
   const rank: Rank = getRank(totalScore, member.leadershipRank, thresholds, effectiveMax);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = recordedDate ?? new Date().toISOString().slice(0, 10);
   const row = {
     member_id: member.id,
     metrics: member.metrics as unknown as Json,
@@ -71,7 +78,6 @@ export async function snapshotAllMembers(
   maxPoints?: number,
   metricDefs?: MetricDefinition[],
 ) {
-  // Sequential to keep request bursts modest; dataset is ~100 rows.
   for (const m of members) {
     await snapshotMemberMetrics({ member: m, source, weekId: weekId ?? null, thresholds, maxPoints, metricDefs });
   }

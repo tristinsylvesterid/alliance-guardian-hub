@@ -1,7 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { snapshotAllMembers } from "@/lib/metrics-history";
+import { snapshotMemberMetrics } from "@/lib/metrics-history";
 import type { Member } from "@/lib/mock-data";
+import {
+  AVA_METRIC,
+  calculateEventPoints,
+  type EventPointSource,
+  type MetricDefinition,
+  type RankThresholdEntry,
+} from "@/lib/scoring";
 
 export type EventStatus = "check" | "x" | "na";
 
@@ -11,6 +18,15 @@ export interface WeeklyEventData {
   label: string;
   svsActive: boolean;
   isArchived: boolean;
+}
+
+export interface ArchiveContext {
+  members: Member[];
+  scoringMetrics: MetricDefinition[];
+  thresholds: RankThresholdEntry[];
+  baseMaxPoints: number;
+  eventTypes: { key: string; inputType: "status" | "rank"; pointWeight: number }[];
+  avaMetric?: MetricDefinition;
 }
 
 function getWeekStart(date: Date): Date {
@@ -33,18 +49,24 @@ function formatWeekLabel(start: Date): string {
   return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", opts)}, ${end.getFullYear()}`;
 }
 
+/** End-of-week date string for a YYYY-MM-DD weekId. Used so each archive
+ *  snapshot gets its own slot in the (member_id, recorded_date) unique key. */
+function weekEndDate(weekId: string): string {
+  const d = new Date(weekId);
+  d.setDate(d.getDate() + 6);
+  return d.toISOString().slice(0, 10);
+}
+
 const MAX_ACTIVE_WEEKS = 4;
 export function useWeeklyEvents() {
   const [activeWeeks, setActiveWeeks] = useState<WeeklyEventData[]>([]);
   const [archivedWeeks, setArchivedWeeks] = useState<WeeklyEventData[]>([]);
   const [attendanceCache, setAttendanceCache] = useState<Record<string, Record<string, Record<string, EventStatus>>>>({});
   const [valueCache, setValueCache] = useState<Record<string, Record<string, Record<string, number | null>>>>({});
-  // toggleCache[weeklyEventId][eventTypeKey] = boolean (default true if absent)
   const [toggleCache, setToggleCache] = useState<Record<string, Record<string, boolean>>>({});
 
   const fetchWeeks = useCallback(async () => {
     const { data: active } = await supabase
-
       .from("weekly_events")
       .select("*")
       .eq("is_archived", false)
@@ -121,9 +143,7 @@ export function useWeeklyEvents() {
     const all = [...activeWeeks, ...archivedWeeks];
     const week = all.find((w) => w.weekId === weekId);
     if (!week) return true;
-    // Legacy: SVS uses its own column
     if (eventKey === "svs") return week.svsActive;
-    // Generic: default true if no row exists
     return toggleCache[week.id]?.[eventKey] ?? true;
   }
 
@@ -143,13 +163,6 @@ export function useWeeklyEvents() {
     return valueCache[week.id]?.[memberId]?.[eventKey] ?? null;
   }
 
-  /**
-   * Returns true if any member has a recorded entry for the given event in the
-   * given week. Used to skip not-yet-occurred events from the weekly total so
-   * the rank percent isn't deflated mid-week.
-   * - status events: any actual row in event_attendance counts (regardless of value)
-   * - rank events (AvA): only counts if at least one member has a value > 0
-   */
   function hasAnyEntries(weekId: string, eventKey: string, inputType: "status" | "rank"): boolean {
     const all = [...activeWeeks, ...archivedWeeks];
     const week = all.find((w) => w.weekId === weekId);
@@ -218,14 +231,61 @@ export function useWeeklyEvents() {
     await fetchToggles();
   }
 
+  /**
+   * Snapshot every member's final score (base metrics + this week's event
+   * bonus) and flip the week to archived. The snapshot is the source of truth
+   * for Rankings/Dashboard once a week is archived.
+   */
+  async function archiveWeek(weekId: string, ctx: ArchiveContext) {
+    const week = [...activeWeeks, ...archivedWeeks].find((w) => w.weekId === weekId);
+    if (!week) return;
+    const ava = ctx.avaMetric ?? AVA_METRIC;
+    const recordedDate = weekEndDate(weekId);
 
-  async function startNewWeek(members?: Member[]) {
+    for (const m of ctx.members) {
+      const sources: EventPointSource[] = ctx.eventTypes.map((e) => {
+        const toggledOn = isEventActive(weekId, e.key);
+        const hasEntries = hasAnyEntries(weekId, e.key, e.inputType);
+        return {
+          key: e.key,
+          inputType: e.inputType,
+          pointWeight: e.pointWeight ?? 1,
+          isActive: toggledOn && hasEntries,
+          status: getStatus(weekId, m.id, e.key),
+          value: getValue(weekId, m.id, e.key),
+        };
+      });
+      const bonus = calculateEventPoints(sources, ava);
+      await snapshotMemberMetrics({
+        member: m,
+        source: "auto_weekly",
+        weekId,
+        thresholds: ctx.thresholds,
+        maxPoints: ctx.baseMaxPoints,
+        eventBonus: bonus,
+        metricDefs: ctx.scoringMetrics,
+        recordedDate,
+      });
+    }
+
+    if (!week.isArchived) {
+      await supabase.from("weekly_events").update({ is_archived: true }).eq("id", week.id);
+    }
+    await fetchWeeks();
+  }
+
+  async function startNewWeek(ctx?: ArchiveContext) {
     const currentStart = getWeekStart(new Date());
     const newWeekId = formatWeekId(currentStart);
 
-    // Check if this week already exists
     const existing = [...activeWeeks, ...archivedWeeks].find(w => w.weekId === newWeekId);
     if (existing) return;
+
+    // Archive oldest active first (with full event-bonus snapshot) if at cap.
+    if (activeWeeks.length >= MAX_ACTIVE_WEEKS && ctx) {
+      const oldest = activeWeeks[activeWeeks.length - 1];
+      await archiveWeek(oldest.weekId, ctx);
+    }
 
     await supabase.from("weekly_events").insert({
       week_id: newWeekId,
@@ -233,17 +293,6 @@ export function useWeeklyEvents() {
       svs_active: true,
       is_archived: false,
     });
-
-    // Archive oldest active if too many
-    if (activeWeeks.length >= MAX_ACTIVE_WEEKS) {
-      const oldest = activeWeeks[activeWeeks.length - 1];
-      await supabase.from("weekly_events").update({ is_archived: true }).eq("id", oldest.id);
-    }
-
-    // Snapshot all members for this new week (auto_weekly).
-    if (members && members.length > 0) {
-      await snapshotAllMembers(members, "auto_weekly", newWeekId);
-    }
 
     await fetchWeeks();
   }
@@ -263,7 +312,7 @@ export function useWeeklyEvents() {
     isEventActive,
     setEventActive,
     hasAnyEntries,
-
+    archiveWeek,
     startNewWeek,
     deleteWeek,
   };

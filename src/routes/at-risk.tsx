@@ -10,8 +10,8 @@ import { useWeeklyEvents } from "@/hooks/use-weekly-events";
 
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
-import { calculateTotalScore, getRank } from "@/lib/scoring";
-import { useEventScoring } from "@/hooks/use-event-scoring";
+import { type Rank } from "@/lib/scoring";
+import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
 import {
   evaluateMemberRisk,
   severityRank,
@@ -36,9 +36,8 @@ function AtRiskPage() {
   const { activeWeeks, getStatus, getValue, isEventActive } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
   const [filter, setFilter] = useState<string | null>(null);
-  const { getEventPoints, eventMaxThisWeek } = useEventScoring();
+  const { latestByMember, latestMax: displayMax, hasArchive } = useArchivedSnapshot();
   const { metrics: liveMetrics, maxTotal: BASE_MAX_POINTS } = useScoringConfig();
-  const displayMax = BASE_MAX_POINTS + eventMaxThisWeek;
 
   const currentWeek = activeWeeks[0];
 
@@ -75,10 +74,9 @@ function AtRiskPage() {
           avaRank,
         }, liveMetrics, BASE_MAX_POINTS);
 
-        const base = calculateTotalScore(m.metrics, liveMetrics);
-        const ev = getEventPoints(m.id);
-        const score = base + ev.earned;
-        const rank = getRank(score, m.leadershipRank, thresholds, BASE_MAX_POINTS + ev.max);
+        const snap = latestByMember[m.id];
+        const score = snap?.totalScore ?? 0;
+        const rank: Rank = (snap?.rank as Rank | null) ?? "R1";
         return { ...m, flags, score, rank, attended, totalOpps: activeEvents.length };
       })
       .filter((m) => m.flags.length > 0)
@@ -89,7 +87,7 @@ function AtRiskPage() {
         if (b.flags.length !== a.flags.length) return b.flags.length - a.flags.length;
         return a.name.localeCompare(b.name);
       });
-  }, [members, eventTypes, currentWeek, isEventActive, getStatus, getValue, thresholds, getEventPoints, liveMetrics, BASE_MAX_POINTS]);
+  }, [members, eventTypes, currentWeek, isEventActive, getStatus, getValue, thresholds, latestByMember, liveMetrics, BASE_MAX_POINTS]);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};

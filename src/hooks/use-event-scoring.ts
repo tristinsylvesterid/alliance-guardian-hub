@@ -5,10 +5,14 @@ import { useScoringConfig } from "@/hooks/use-scoring-config";
 import { AVA_METRIC, calculateEventPoints, type EventPointSource } from "@/lib/scoring";
 
 /**
- * Returns a callable `(memberId) => { earned, max }` that scores a member's
- * current-week event attendance. Events toggled off contribute 0 to both
- * earned and max so the rank percent stays fair. If no current week exists
- * yet, returns { earned: 0, max: 0 } so callers degrade gracefully.
+ * Per-week event scoring helpers.
+ *
+ * - `getEventPointsForWeek(memberId, weekId)` / `getEventMaxForWeek(weekId)`:
+ *   parameterized variants — usable for any week (active or archived).
+ * - `getEventPoints(memberId)` / `eventMaxThisWeek`: convenience wrappers
+ *   bound to the latest active week.
+ *
+ * If no active week exists, the current-week wrappers return zeros.
  */
 export function useEventScoring() {
   const { eventTypes } = useEventTypes();
@@ -17,35 +21,54 @@ export function useEventScoring() {
   const avaMetric = metrics.find((m) => m.key === "avaWeeklyScore") ?? AVA_METRIC;
   const currentWeek = activeWeeks[0] ?? null;
 
-  const getEventPoints = useCallback(
-    (memberId: string) => {
-      if (!currentWeek) return { earned: 0, max: 0 };
+  const getEventPointsForWeek = useCallback(
+    (memberId: string, weekId: string) => {
       const sources: EventPointSource[] = eventTypes.map((e) => {
-        const toggledOn = isEventActive(currentWeek.weekId, e.key);
-        const hasEntries = hasAnyEntries(currentWeek.weekId, e.key, e.inputType);
+        const toggledOn = isEventActive(weekId, e.key);
+        const hasEntries = hasAnyEntries(weekId, e.key, e.inputType);
         return {
           key: e.key,
           inputType: e.inputType,
           pointWeight: e.pointWeight ?? 1,
           isActive: toggledOn && hasEntries,
-          status: getStatus(currentWeek.weekId, memberId, e.key),
-          value: getValue(currentWeek.weekId, memberId, e.key),
+          status: getStatus(weekId, memberId, e.key),
+          value: getValue(weekId, memberId, e.key),
         };
       });
       return calculateEventPoints(sources, avaMetric);
     },
-    [currentWeek, eventTypes, isEventActive, getStatus, getValue, hasAnyEntries, avaMetric],
+    [eventTypes, isEventActive, getStatus, getValue, hasAnyEntries, avaMetric],
   );
 
-  /** Max event points available this week, computed once (member-independent). */
-  const eventMaxThisWeek = currentWeek
-    ? eventTypes.reduce((sum, e) => {
-        if (!isEventActive(currentWeek.weekId, e.key)) return sum;
-        if (!hasAnyEntries(currentWeek.weekId, e.key, e.inputType)) return sum;
+  const getEventMaxForWeek = useCallback(
+    (weekId: string) => {
+      return eventTypes.reduce((sum, e) => {
+        if (!isEventActive(weekId, e.key)) return sum;
+        if (!hasAnyEntries(weekId, e.key, e.inputType)) return sum;
         if (e.inputType === "rank") return sum + avaMetric.maxPoints;
         return sum + (e.pointWeight ?? 1);
-      }, 0)
-    : 0;
+      }, 0);
+    },
+    [eventTypes, isEventActive, hasAnyEntries, avaMetric],
+  );
 
-  return { getEventPoints, eventMaxThisWeek, hasCurrentWeek: !!currentWeek };
+  const getEventPoints = useCallback(
+    (memberId: string) => {
+      if (!currentWeek) return { earned: 0, max: 0 };
+      return getEventPointsForWeek(memberId, currentWeek.weekId);
+    },
+    [currentWeek, getEventPointsForWeek],
+  );
+
+  const eventMaxThisWeek = currentWeek ? getEventMaxForWeek(currentWeek.weekId) : 0;
+
+  return {
+    getEventPoints,
+    getEventPointsForWeek,
+    getEventMaxForWeek,
+    eventMaxThisWeek,
+    hasCurrentWeek: !!currentWeek,
+    avaMetric,
+    eventTypes,
+  };
 }

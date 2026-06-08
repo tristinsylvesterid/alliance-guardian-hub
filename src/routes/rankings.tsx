@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RankBadge } from "@/components/RankBadge";
 import { useMembers } from "@/hooks/use-members";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
-import { calculateTotalScore, getRank, calculateMetricPoints, type Rank } from "@/lib/scoring";
+import { calculateMetricPoints, type Rank } from "@/lib/scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
-import { useEventScoring } from "@/hooks/use-event-scoring";
+import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/rankings")({
@@ -21,32 +21,58 @@ export const Route = createFileRoute("/rankings")({
 
 function RankingsPage() {
   const { members } = useMembers();
-  const { metrics: METRIC_DEFINITIONS, maxTotal: BASE_MAX_POINTS } = useScoringConfig();
+  const { metrics: METRIC_DEFINITIONS } = useScoringConfig();
   const { thresholds } = useRankThresholds();
-  const { getEventPoints, eventMaxThisWeek } = useEventScoring();
-  const MAX_TOTAL_POINTS = BASE_MAX_POINTS + eventMaxThisWeek;
-
-  const membersWithScores = members.map((m) => {
-    const base = calculateTotalScore(m.metrics, METRIC_DEFINITIONS);
-    const ev = getEventPoints(m.id);
-    const score = base + ev.earned;
-    const rank = getRank(score, m.leadershipRank, thresholds, BASE_MAX_POINTS + ev.max);
-    const breakdown = METRIC_DEFINITIONS.map((def) => ({
-      metric: def.name,
-      maxPoints: def.maxPoints,
-      points: m.metrics[def.key] !== undefined ? calculateMetricPoints(def, m.metrics[def.key]) : 0,
-    }));
-    return { ...m, score, rank, breakdown };
-  }).sort((a, b) => b.score - a.score);
+  const { latest, latestByMember, latestMax, hasArchive, loading } = useArchivedSnapshot();
 
   const ranks: Rank[] = ["R5", "R4", "R3", "R2", "R1"];
+
+  if (!hasArchive) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="font-heading text-3xl font-bold tracking-wide text-gold">Rankings</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Class rankings based on the last completed week's final scores.
+            </p>
+          </div>
+          <Card>
+            <CardContent className="p-10 text-center text-muted-foreground">
+              {loading ? "Loading…" : "No completed week yet — archive a week from the Events page to see rankings."}
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const membersWithScores = members
+    .map((m) => {
+      const snap = latestByMember[m.id];
+      const score = snap?.totalScore ?? 0;
+      const rank: Rank = (snap?.rank as Rank | null) ?? "R1";
+      const metricsForBreakdown = snap?.metrics ?? m.metrics;
+      const breakdown = METRIC_DEFINITIONS.map((def) => ({
+        metric: def.name,
+        maxPoints: def.maxPoints,
+        points:
+          metricsForBreakdown[def.key] !== undefined
+            ? calculateMetricPoints(def, metricsForBreakdown[def.key])
+            : 0,
+      }));
+      return { ...m, score, rank, breakdown, hasSnap: !!snap };
+    })
+    .sort((a, b) => b.score - a.score);
 
   return (
     <AppLayout>
       <div className="space-y-6">
         <div>
           <h1 className="font-heading text-3xl font-bold tracking-wide text-gold">Rankings</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Class rankings based on scored metrics · Max {MAX_TOTAL_POINTS} points</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Final scores from <span className="text-foreground">{latest?.label}</span> · Max {latestMax} points
+          </p>
         </div>
 
         <Card>
@@ -66,7 +92,6 @@ function RankingsPage() {
                   { rank: "R4" as Rank, desc: "Officer (override)" },
                   { rank: "R5" as Rank, desc: "Leader (override)" },
                 ];
-
               })().map((r) => (
                 <div key={r.rank} className="flex flex-col items-center gap-2 rounded-lg bg-secondary/50 p-4">
                   <RankBadge rank={r.rank} className="text-sm" />
@@ -98,6 +123,9 @@ function RankingsPage() {
                           <div className="flex items-center gap-3">
                             <span className="font-medium text-foreground">{m.name}</span>
                             <RankBadge rank={m.rank} />
+                            {!m.hasSnap && (
+                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">No snapshot</span>
+                            )}
                           </div>
                           <div className="mt-2 flex flex-wrap gap-1">
                             {m.breakdown.map((b) => (
@@ -119,7 +147,7 @@ function RankingsPage() {
                         </div>
                         <div className="text-right">
                           <span className="text-2xl font-bold text-gold">{m.score}</span>
-                          <span className="text-sm text-muted-foreground">/{MAX_TOTAL_POINTS}</span>
+                          <span className="text-sm text-muted-foreground">/{latestMax}</span>
                         </div>
                       </div>
                     </CardContent>

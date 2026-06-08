@@ -49,9 +49,9 @@ function EventsPage() {
     if (bi === -1) return -1;
     return ai - bi;
   });
-  const { activeWeeks, getStatus, getValue, setStatus, isEventActive, setEventActive, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
+  const { activeWeeks, getStatus, getValue, setStatus, isEventActive, setEventActive, startNewWeek, archiveWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
-  const { getEventPoints } = useEventScoring();
+  const { getEventPoints, eventTypes: scoringEventTypes, avaMetric } = useEventScoring();
   const { metrics: scoringMetrics, maxTotal: BASE_MAX_POINTS } = useScoringConfig();
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
 
@@ -76,16 +76,36 @@ function EventsPage() {
     await setStatus(selectedWeekId, memberId, eventKey, status, rankValue);
   }
 
+  function buildArchiveContext() {
+    return {
+      members: rawMembers,
+      scoringMetrics,
+      thresholds,
+      baseMaxPoints: BASE_MAX_POINTS,
+      eventTypes: scoringEventTypes.map((e) => ({
+        key: e.key,
+        inputType: e.inputType,
+        pointWeight: e.pointWeight ?? 1,
+      })),
+      avaMetric,
+    };
+  }
+
   function handleStartNewWeek() {
-    startNewWeek(members);
+    startNewWeek(buildArchiveContext());
+  }
+
+  async function handleArchiveSelected() {
+    if (!selectedWeekId) return;
+    await archiveWeek(selectedWeekId, buildArchiveContext());
+    setSelectedWeekId(activeWeeks.find(w => w.weekId !== selectedWeekId)?.weekId ?? "");
   }
 
   if (!activeWeeks.find((w) => w.weekId === selectedWeekId) && activeWeeks[0]) {
     setSelectedWeekId(activeWeeks[0].weekId);
   }
 
-  // AvA bracket scoring (per-event, not a member metric) — sourced from editable scoring config.
-  const avaMetric = scoringMetrics.find((m) => m.key === "avaWeeklyScore") ?? AVA_METRIC;
+  // avaMetric already provided by useEventScoring above.
 
 
 
@@ -121,6 +141,38 @@ function EventsPage() {
             >
               <Plus className="mr-2 h-4 w-4" /> New Week
             </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-gold/30 text-gold hover:bg-gold/10"
+                  disabled={!selectedWeekId}
+                  title="Finalize this week's scores and lock it"
+                >
+                  Archive Week
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Archive {selectedWeek?.label}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This freezes every member's score (fixed values + this week's events) as the current
+                    displayed rank across Rankings, Dashboard, Members and At-Risk. You can still view
+                    the week from the Event Archive afterwards, but attendance and events on it
+                    become read-only.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-gold text-background hover:bg-gold/90"
+                    onClick={handleArchiveSelected}
+                  >
+                    Archive
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10" disabled={!selectedWeekId}>

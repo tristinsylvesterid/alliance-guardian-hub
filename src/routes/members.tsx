@@ -9,13 +9,11 @@ import { RankBadge } from "@/components/RankBadge";
 import { MemberFormDialog } from "@/components/MemberFormDialog";
 import { ArchiveConfirmDialog } from "@/components/ArchiveConfirmDialog";
 import { type Member } from "@/lib/mock-data";
-import { calculateTotalScore, getRank, METRIC_DEFINITIONS } from "@/lib/scoring";
-import { useRankThresholds } from "@/hooks/use-rank-thresholds";
-import { useScoringConfig } from "@/hooks/use-scoring-config";
+import { METRIC_DEFINITIONS, type Rank } from "@/lib/scoring";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useMembers } from "@/hooks/use-members";
 import { useMemberNameHistory } from "@/hooks/use-member-name-history";
-import { useEventScoring } from "@/hooks/use-event-scoring";
+import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Search, Plus, Pencil, History } from "lucide-react";
 
@@ -36,17 +34,17 @@ function MembersPage() {
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Member | null>(null);
   const { archiveMember } = useArchivedMembers();
-  const { thresholds } = useRankThresholds();
-  const { metrics: liveMetrics, maxTotal: BASE_MAX_POINTS } = useScoringConfig();
   const { getHistoryFor, memberMatchesPreviousName } = useMemberNameHistory();
-  const { getEventPoints } = useEventScoring();
+  const { latestByMember, hasArchive } = useArchivedSnapshot();
 
   const membersWithScores = members.map((m) => {
-    const base = calculateTotalScore(m.metrics, liveMetrics);
-    const ev = getEventPoints(m.id);
-    const score = base + ev.earned;
-    const rank = getRank(score, m.leadershipRank, thresholds, BASE_MAX_POINTS + ev.max);
-    return { ...m, score, rank };
+    const snap = latestByMember[m.id];
+    return {
+      ...m,
+      score: snap?.totalScore ?? 0,
+      rank: ((snap?.rank as Rank | null) ?? "R1") as Rank,
+      hasSnap: !!snap,
+    };
   });
 
   const filtered = membersWithScores.filter((m) => {
@@ -177,8 +175,16 @@ function MembersPage() {
                           })()}
                         </div>
                       </TableCell>
-                      <TableCell><RankBadge rank={member.rank} /></TableCell>
-                      <TableCell className="text-center font-bold text-gold">{member.score}</TableCell>
+                      <TableCell>
+                        {member.hasSnap ? (
+                          <RankBadge rank={member.rank} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center font-bold text-gold">
+                        {member.hasSnap ? member.score : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
                       <TableCell className="text-center text-sm">
                         {(() => {
                           if (!member.updatedAt) return <span className="text-muted-foreground">—</span>;
