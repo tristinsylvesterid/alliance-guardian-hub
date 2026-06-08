@@ -74,10 +74,9 @@ function AtRiskPage() {
           avaRank,
         }, liveMetrics, BASE_MAX_POINTS);
 
-        const base = calculateTotalScore(m.metrics, liveMetrics);
-        const ev = getEventPoints(m.id);
-        const score = base + ev.earned;
-        const rank = getRank(score, m.leadershipRank, thresholds, BASE_MAX_POINTS + ev.max);
+        const snap = latestByMember[m.id];
+        const score = snap?.totalScore ?? 0;
+        const rank: Rank = (snap?.rank as Rank | null) ?? "R1";
         return { ...m, flags, score, rank, attended, totalOpps: activeEvents.length };
       })
       .filter((m) => m.flags.length > 0)
@@ -88,7 +87,7 @@ function AtRiskPage() {
         if (b.flags.length !== a.flags.length) return b.flags.length - a.flags.length;
         return a.name.localeCompare(b.name);
       });
-  }, [members, eventTypes, currentWeek, isEventActive, getStatus, getValue, thresholds, getEventPoints, liveMetrics, BASE_MAX_POINTS]);
+  }, [members, eventTypes, currentWeek, isEventActive, getStatus, getValue, thresholds, latestByMember, liveMetrics, BASE_MAX_POINTS]);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
