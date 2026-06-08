@@ -55,30 +55,37 @@ export function useScoringConfig() {
     await fetchMetrics();
   }
 
+  function computeMax(brackets: MetricBracket[]): number {
+    return Math.max(...brackets.map((b) => b.points), 0);
+  }
+
+  async function saveBrackets(metricKey: string, newBrackets: MetricBracket[]) {
+    await supabase
+      .from("scoring_config")
+      .update({ brackets: newBrackets as unknown as Json, max_points: computeMax(newBrackets) })
+      .eq("key", metricKey);
+    await fetchMetrics();
+  }
+
   async function updateBracket(metricKey: string, bracketIndex: number, updates: Partial<MetricBracket>) {
     const metric = metrics.find((m) => m.key === metricKey);
     if (!metric) return;
     const newBrackets = metric.brackets.map((b, i) =>
       i === bracketIndex ? { ...b, ...updates } : b
     );
-    await supabase.from("scoring_config").update({ brackets: newBrackets as unknown as Json }).eq("key", metricKey);
-    await fetchMetrics();
+    await saveBrackets(metricKey, newBrackets);
   }
 
   async function addBracket(metricKey: string, bracket: MetricBracket) {
     const metric = metrics.find((m) => m.key === metricKey);
     if (!metric) return;
-    const newBrackets = [...metric.brackets, bracket];
-    await supabase.from("scoring_config").update({ brackets: newBrackets as unknown as Json }).eq("key", metricKey);
-    await fetchMetrics();
+    await saveBrackets(metricKey, [...metric.brackets, bracket]);
   }
 
   async function removeBracket(metricKey: string, bracketIndex: number) {
     const metric = metrics.find((m) => m.key === metricKey);
     if (!metric) return;
-    const newBrackets = metric.brackets.filter((_, i) => i !== bracketIndex);
-    await supabase.from("scoring_config").update({ brackets: newBrackets as unknown as Json }).eq("key", metricKey);
-    await fetchMetrics();
+    await saveBrackets(metricKey, metric.brackets.filter((_, i) => i !== bracketIndex));
   }
 
   async function recalcMaxPoints(metricKey: string) {
