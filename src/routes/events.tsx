@@ -268,30 +268,6 @@ function EventsPage() {
                       )}
                     </TableHead>
                   ))}
-                  {selectedWeek && getPollsForWeek(selectedWeek.id).map((p, idx) => {
-                    const count = members.filter((m) => getResponse(p.id, m.id)).length;
-                    return (
-                      <TableHead
-                        key={p.id}
-                        className={`text-gold-muted font-heading text-center ${idx === 0 ? "border-l border-border/60" : ""}`}
-                      >
-                        <div className="flex items-center justify-center gap-1">
-                          <span>{p.name}</span>
-                          <span className="text-xs text-muted-foreground">({count}/{members.length})</span>
-                          {isCurrentWeek && (
-                            <button
-                              type="button"
-                              onClick={() => removePoll(p.id)}
-                              className="ml-1 text-muted-foreground hover:text-destructive"
-                              title="Delete poll"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </TableHead>
-                    );
-                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
