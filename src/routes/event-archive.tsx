@@ -10,6 +10,7 @@ import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
 import { calculateTotalScore, getRank } from "@/lib/scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
+import { useScoringConfig } from "@/hooks/use-scoring-config";
 import { Check, X, Minus, CalendarClock } from "lucide-react";
 
 export const Route = createFileRoute("/event-archive")({
@@ -33,13 +34,14 @@ function EventArchivePage() {
   const { eventTypes } = useEventTypes();
   const { archivedWeeks, getStatus } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
+  const { metrics: liveMetrics, maxTotal } = useScoringConfig();
   const [selectedWeekId, setSelectedWeekId] = useState(archivedWeeks[0]?.weekId ?? "");
 
   const selectedWeek = archivedWeeks.find((w) => w.weekId === selectedWeekId);
 
   const members = rawMembers.map((m) => {
-    const score = calculateTotalScore(m.metrics);
-    const rank = getRank(score, m.leadershipRank, thresholds);
+    const score = calculateTotalScore(m.metrics, liveMetrics);
+    const rank = getRank(score, m.leadershipRank, thresholds, undefined, maxTotal);
     return { ...m, score, rank };
   });
 

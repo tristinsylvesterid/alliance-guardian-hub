@@ -6,6 +6,7 @@ import { RankBadge } from "@/components/RankBadge";
 import { calculateTotalScore, getRank } from "@/lib/scoring";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
+import { useScoringConfig } from "@/hooks/use-scoring-config";
 import { Archive } from "lucide-react";
 
 export const Route = createFileRoute("/archive")({
