@@ -40,7 +40,7 @@ function StatusIcon({ status }: { status: EventStatus }) {
 function EventsPage() {
   const { members: rawMembers } = useMembers();
   const { eventTypes: rawEventTypes } = useEventTypes();
-  const EVENT_ORDER = ["ice_pit_1", "glory_war", "ice_pit_2", "ice_pit_3", "capital", "svs", "ava"];
+  const EVENT_ORDER = ["ice_pit_1", "glory_war", "ice_pit_2", "ice_pit_3", "capital", "canyon_clash", "ava", "svs", "engagement"];
   const eventTypes = [...rawEventTypes].sort((a, b) => {
     const ai = EVENT_ORDER.indexOf(a.key);
     const bi = EVENT_ORDER.indexOf(b.key);
@@ -50,10 +50,8 @@ function EventsPage() {
     return ai - bi;
   });
   const { activeWeeks, getStatus, getValue, setStatus, isEventActive, setEventActive, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
-  const { getPollsForWeek, addPoll, removePoll, getResponse, setResponse } = useWeeklyPolls();
   const { thresholds } = useRankThresholds();
   const { getEventPoints } = useEventScoring();
-  const [newPollName, setNewPollName] = useState("");
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
 
 
