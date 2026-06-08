@@ -139,7 +139,7 @@ function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-gold">Scoring Brackets</CardTitle>
-            <CardDescription>Total possible: {maxTotal} points</CardDescription>
+            <CardDescription>Total possible: {weeklyMax} points ({maxTotal} metrics + {eventMax} events)</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
