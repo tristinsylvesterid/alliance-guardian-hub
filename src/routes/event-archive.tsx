@@ -41,7 +41,7 @@ function EventArchivePage() {
 
   const members = rawMembers.map((m) => {
     const score = calculateTotalScore(m.metrics, liveMetrics);
-    const rank = getRank(score, m.leadershipRank, thresholds, undefined, maxTotal);
+    const rank = getRank(score, m.leadershipRank, thresholds, maxTotal);
     return { ...m, score, rank };
   });
 

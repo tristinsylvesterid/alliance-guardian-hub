@@ -121,7 +121,7 @@ function SettingsPage() {
               onClick={async () => {
                 setSeeding(true);
                 try {
-                  await snapshotAllMembers(members, "baseline", null, thresholds, maxTotal);
+                  await snapshotAllMembers(members, "baseline", null, thresholds, maxTotal, metrics);
                   toast.success(`Baseline snapshot recorded for ${members.length} members`);
                 } catch (e) {
                   toast.error(`Snapshot failed: ${(e as Error).message}`);
