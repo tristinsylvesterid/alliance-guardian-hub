@@ -31,6 +31,13 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const { eventTypes, addEventType, removeEventType, setPointWeight } = useEventTypes();
+  const eventMax = eventTypes.reduce((sum, e) => {
+    if (e.inputType === "rank") {
+      const ava = undefined as undefined;
+      return sum;
+    }
+    return sum + (e.pointWeight ?? 0);
+  }, 0);
   const { metrics, maxTotal, updateBracket, addBracket, removeBracket, recalcMaxPoints } = useScoringConfig();
   const { thresholds, updateThreshold } = useRankThresholds();
   const { members } = useMembers();
