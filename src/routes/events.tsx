@@ -348,33 +348,6 @@ function EventsPage() {
                         </TableCell>
                       );
                     })}
-                    {selectedWeek && getPollsForWeek(selectedWeek.id).map((p, idx) => {
-                      const responded = getResponse(p.id, m.id);
-                      return (
-                        <TableCell
-                          key={p.id}
-                          className={`text-center ${idx === 0 ? "border-l border-border/60" : ""}`}
-                        >
-                          {isCurrentWeek ? (
-                            <button
-                              type="button"
-                              onClick={() => setResponse(p.id, m.id, !responded)}
-                              className="inline-flex items-center rounded px-2 py-1 hover:bg-accent transition-colors"
-                            >
-                              {responded ? (
-                                <Check className="h-4 w-4 text-gold" />
-                              ) : (
-                                <X className="h-4 w-4 text-destructive/60" />
-                              )}
-                            </button>
-                          ) : responded ? (
-                            <Check className="inline h-4 w-4 text-gold" />
-                          ) : (
-                            <X className="inline h-4 w-4 text-destructive/60" />
-                          )}
-                        </TableCell>
-                      );
-                    })}
                   </TableRow>
                 ))}
               </TableBody>
