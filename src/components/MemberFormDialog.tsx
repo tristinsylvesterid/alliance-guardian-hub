@@ -19,7 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { METRIC_DEFINITIONS } from "@/lib/scoring";
+import { useScoringConfig } from "@/hooks/use-scoring-config";
+import type { MetricDefinition } from "@/lib/scoring";
 import type { Member } from "@/lib/mock-data";
 
 const METRIC_HELPERS: Record<string, { step: string; helper: string }> = {
