@@ -32,6 +32,12 @@ export const Route = createFileRoute("/settings")({
 function SettingsPage() {
   const { eventTypes, addEventType, removeEventType, setPointWeight } = useEventTypes();
   const { metrics, maxTotal, updateBracket, addBracket, removeBracket, recalcMaxPoints } = useScoringConfig();
+  const avaMax = metrics.find((m) => m.key === "ava")?.maxPoints ?? 0;
+  const eventMax = eventTypes.reduce(
+    (sum, e) => sum + (e.inputType === "rank" ? avaMax : (e.pointWeight ?? 0)),
+    0
+  );
+  const weeklyMax = maxTotal + eventMax;
   const { thresholds, updateThreshold } = useRankThresholds();
   const { members } = useMembers();
   const [seeding, setSeeding] = useState(false);
@@ -133,7 +139,7 @@ function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-heading text-gold">Scoring Brackets</CardTitle>
-            <CardDescription>Total possible: {maxTotal} points</CardDescription>
+            <CardDescription>Total possible: {weeklyMax} points ({maxTotal} metrics + {eventMax} events)</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -181,7 +187,7 @@ function SettingsPage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle className="font-heading text-gold">Rank Thresholds</CardTitle>
-              <CardDescription>Percent of available points needed for each rank (currently {maxTotal} max)</CardDescription>
+              <CardDescription>Percent of available points needed for each rank (currently {weeklyMax} max)</CardDescription>
             </div>
             {!editingThresholds ? (
               <Button

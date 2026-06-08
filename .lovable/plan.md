@@ -1,18 +1,14 @@
-# Fix: Member form uses stale scoring brackets
-
 ## Problem
-`MemberFormDialog` reads metrics from the hardcoded `METRIC_DEFINITIONS` in `src/lib/scoring.ts`. Bracket edits live in the database (`scoring_config`) and never reach the dialog, so "X pts max" labels and the Troops tier options show the original defaults instead of the user's updated brackets.
+
+The Settings page's Rank Thresholds card says "currently 78 max", but actual rank percent uses metrics + per-week event point weights (status events use `point_weight`; the AvA rank event uses the AvA bracket max). So the displayed max underrepresents the real weekly ceiling.
 
 ## Fix
-Switch the dialog to the live config via `useScoringConfig()`.
 
-### `src/components/MemberFormDialog.tsx`
-- Drop `import { METRIC_DEFINITIONS } from "@/lib/scoring"`.
-- Add `import { useScoringConfig } from "@/hooks/use-scoring-config"` and read `const { metrics: metricDefs } = useScoringConfig();`.
-- Replace all `METRIC_DEFINITIONS` usages with `metricDefs`:
-  - `getDefaultMetrics()` → turn into an in-component helper that takes `metricDefs` (or compute inline in an effect).
-  - The `METRIC_DEFINITIONS.map(...)` render loop → `metricDefs.map(...)`.
-- For tier metrics (Troops), `SelectItem` already maps `def.brackets` — once `metricDefs` is live, the dropdown reflects current bracket labels/points.
-- Keep `METRIC_HELPERS` lookup by `def.key` untouched.
+In `src/routes/settings.tsx`:
 
-No DB or schema changes. No other components affected.
+1. Pull `eventTypes` from `useEventTypes()` (already imported) and reuse `metrics` from `useScoringConfig()`.
+2. Compute `eventMax` the same way `calculateEventPoints` does, but assuming all events active (this card represents the maximum possible week):
+   - For each `eventType`: if `inputType === "rank"`, add the AvA metric's `maxPoints` (look up via `metrics.find(m => m.key === "ava")`, fallback 0); otherwise add `pointWeight`.
+3. Display `Total possible: {maxTotal + eventMax} points` on the Scoring Brackets card and `currently {maxTotal + eventMax} max` on the Rank Thresholds card description. Keep the bracket-only `maxTotal` for the per-metric table header math (no change needed there since it isn't shown).
+
+No changes to scoring logic, DB, or other pages — purely a display correction in `settings.tsx`.
