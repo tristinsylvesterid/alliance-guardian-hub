@@ -54,9 +54,10 @@ function getDefaultMetrics(defs: MetricDefinition[]): Record<string, number | bo
 
 export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive }: MemberFormDialogProps) {
   const isEdit = !!member;
+  const { metrics: metricDefs } = useScoringConfig();
   const [name, setName] = useState("");
   const [leadershipRank, setLeadershipRank] = useState<"" | "none" | "R4" | "R5">("");
-  const [metrics, setMetrics] = useState<Record<string, number | boolean | string>>(getDefaultMetrics());
+  const [metrics, setMetrics] = useState<Record<string, number | boolean | string>>({});
   const [power, setPower] = useState(0);
   const [locationX, setLocationX] = useState(0);
   const [locationY, setLocationY] = useState(0);
@@ -65,22 +66,23 @@ export function MemberFormDialog({ open, onOpenChange, member, onSave, onArchive
   const nameHistory = member ? getHistoryFor(member.id) : [];
 
   useEffect(() => {
+    if (metricDefs.length === 0) return;
     if (member) {
       setName(member.name);
       setLeadershipRank(member.leadershipRank || "");
-      setMetrics({ ...getDefaultMetrics(), ...member.metrics });
+      setMetrics({ ...getDefaultMetrics(metricDefs), ...member.metrics });
       setPower(member.power ?? 0);
       setLocationX(member.locationX ?? 0);
       setLocationY(member.locationY ?? 0);
     } else {
       setName("");
       setLeadershipRank("");
-      setMetrics(getDefaultMetrics());
+      setMetrics(getDefaultMetrics(metricDefs));
       setPower(0);
       setLocationX(0);
       setLocationY(0);
     }
-  }, [member, open]);
+  }, [member, open, metricDefs]);
 
   function setMetric(key: string, value: number | boolean | string) {
     setMetrics((prev) => ({ ...prev, [key]: value }));
