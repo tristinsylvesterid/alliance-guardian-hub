@@ -171,8 +171,11 @@ export function calculateMetricPoints(metric: MetricDefinition, value: number | 
   return 0;
 }
 
-export function calculateTotalScore(metrics: Record<string, number | boolean | string>): number {
-  return METRIC_DEFINITIONS.reduce((total, def) => {
+export function calculateTotalScore(
+  metrics: Record<string, number | boolean | string>,
+  defs: MetricDefinition[] = METRIC_DEFINITIONS,
+): number {
+  return defs.reduce((total, def) => {
     const val = metrics[def.key];
     if (val === undefined || val === null) return total;
     return total + calculateMetricPoints(def, val);
