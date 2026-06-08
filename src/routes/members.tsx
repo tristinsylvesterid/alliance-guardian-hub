@@ -9,8 +9,9 @@ import { RankBadge } from "@/components/RankBadge";
 import { MemberFormDialog } from "@/components/MemberFormDialog";
 import { ArchiveConfirmDialog } from "@/components/ArchiveConfirmDialog";
 import { type Member } from "@/lib/mock-data";
-import { calculateTotalScore, getRank, METRIC_DEFINITIONS, MAX_TOTAL_POINTS } from "@/lib/scoring";
+import { calculateTotalScore, getRank, METRIC_DEFINITIONS } from "@/lib/scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
+import { useScoringConfig } from "@/hooks/use-scoring-config";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useMembers } from "@/hooks/use-members";
 import { useMemberNameHistory } from "@/hooks/use-member-name-history";
@@ -36,14 +37,15 @@ function MembersPage() {
   const [archiveTarget, setArchiveTarget] = useState<Member | null>(null);
   const { archiveMember } = useArchivedMembers();
   const { thresholds } = useRankThresholds();
+  const { metrics: liveMetrics, maxTotal: BASE_MAX_POINTS } = useScoringConfig();
   const { getHistoryFor, memberMatchesPreviousName } = useMemberNameHistory();
   const { getEventPoints } = useEventScoring();
 
   const membersWithScores = members.map((m) => {
-    const base = calculateTotalScore(m.metrics);
+    const base = calculateTotalScore(m.metrics, liveMetrics);
     const ev = getEventPoints(m.id);
     const score = base + ev.earned;
-    const rank = getRank(score, m.leadershipRank, thresholds, MAX_TOTAL_POINTS + ev.max);
+    const rank = getRank(score, m.leadershipRank, thresholds, BASE_MAX_POINTS + ev.max);
     return { ...m, score, rank };
   });
 

@@ -14,7 +14,7 @@ import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
 
-import { calculateTotalScore, getRank, calculateMetricPoints, AVA_METRIC, MAX_TOTAL_POINTS } from "@/lib/scoring";
+import { calculateTotalScore, getRank, calculateMetricPoints, AVA_METRIC } from "@/lib/scoring";
 import { useEventScoring } from "@/hooks/use-event-scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
@@ -52,6 +52,7 @@ function EventsPage() {
   const { activeWeeks, getStatus, getValue, setStatus, isEventActive, setEventActive, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
   const { getEventPoints } = useEventScoring();
+  const { metrics: scoringMetrics, maxTotal: BASE_MAX_POINTS } = useScoringConfig();
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
 
 
@@ -59,10 +60,10 @@ function EventsPage() {
   const isCurrentWeek = selectedWeekId === activeWeeks[0]?.weekId;
 
   const members = rawMembers.map((m) => {
-    const base = calculateTotalScore(m.metrics);
+    const base = calculateTotalScore(m.metrics, scoringMetrics);
     const ev = getEventPoints(m.id);
     const score = base + ev.earned;
-    const rank = getRank(score, m.leadershipRank, thresholds, MAX_TOTAL_POINTS + ev.max);
+    const rank = getRank(score, m.leadershipRank, thresholds, BASE_MAX_POINTS + ev.max);
     return { ...m, score, rank };
   });
 
@@ -84,7 +85,6 @@ function EventsPage() {
   }
 
   // AvA bracket scoring (per-event, not a member metric) — sourced from editable scoring config.
-  const { metrics: scoringMetrics } = useScoringConfig();
   const avaMetric = scoringMetrics.find((m) => m.key === "avaWeeklyScore") ?? AVA_METRIC;
 
 

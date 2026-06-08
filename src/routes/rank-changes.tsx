@@ -134,7 +134,7 @@ function RankChangesPage() {
       if (!snap) continue; // no baseline → skip
 
       // Previous rank: snapshot metrics + prior-week event bonus
-      const prevBase = calculateTotalScore(snap.metrics);
+      const prevBase = calculateTotalScore(snap.metrics, scoringMetrics);
       const prevEv = getPriorEventPoints(m.id);
       const prevScore = prevBase + prevEv.earned;
       const prevMax = BASE_MAX_POINTS + prevEv.max;
@@ -146,7 +146,7 @@ function RankChangesPage() {
       );
 
       // Current rank: live metrics + current-week event bonus
-      const curBase = calculateTotalScore(m.metrics);
+      const curBase = calculateTotalScore(m.metrics, scoringMetrics);
       const curEv = getEventPoints(m.id);
       const curScore = curBase + curEv.earned;
       const curMax = BASE_MAX_POINTS + curEv.max;
@@ -173,7 +173,7 @@ function RankChangesPage() {
 
     out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta) || a.name.localeCompare(b.name));
     return out;
-  }, [members, priorSnapshots, getPriorEventPoints, getEventPoints, BASE_MAX_POINTS, thresholds, currentWeek]);
+  }, [members, priorSnapshots, getPriorEventPoints, getEventPoints, BASE_MAX_POINTS, thresholds, currentWeek, scoringMetrics]);
 
   const promotions = rows.filter((r) => r.direction === "up").length;
   const demotions = rows.filter((r) => r.direction === "down").length;

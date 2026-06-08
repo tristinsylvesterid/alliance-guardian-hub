@@ -6,6 +6,7 @@ import { RankBadge } from "@/components/RankBadge";
 import { calculateTotalScore, getRank } from "@/lib/scoring";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
+import { useScoringConfig } from "@/hooks/use-scoring-config";
 import { Archive } from "lucide-react";
 
 export const Route = createFileRoute("/archive")({
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/archive")({
 function ArchivePage() {
   const { archivedMembers } = useArchivedMembers();
   const { thresholds } = useRankThresholds();
+  const { metrics: liveMetrics, maxTotal } = useScoringConfig();
 
   return (
     <AppLayout>
@@ -54,8 +56,8 @@ function ArchivePage() {
                   </TableHeader>
                   <TableBody>
                     {archivedMembers.map((entry) => {
-                      const score = calculateTotalScore(entry.metrics);
-                      const rank = getRank(score, entry.leadershipRank as "R4" | "R5" | undefined, thresholds);
+                      const score = calculateTotalScore(entry.metrics, liveMetrics);
+                      const rank = getRank(score, entry.leadershipRank as "R4" | "R5" | undefined, thresholds, maxTotal);
                       return (
                         <TableRow key={entry.id} className="border-border/50">
                           <TableCell className="font-medium text-foreground">{entry.name}</TableCell>

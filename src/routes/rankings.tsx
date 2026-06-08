@@ -27,7 +27,7 @@ function RankingsPage() {
   const MAX_TOTAL_POINTS = BASE_MAX_POINTS + eventMaxThisWeek;
 
   const membersWithScores = members.map((m) => {
-    const base = calculateTotalScore(m.metrics);
+    const base = calculateTotalScore(m.metrics, METRIC_DEFINITIONS);
     const ev = getEventPoints(m.id);
     const score = base + ev.earned;
     const rank = getRank(score, m.leadershipRank, thresholds, BASE_MAX_POINTS + ev.max);

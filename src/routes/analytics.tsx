@@ -167,7 +167,7 @@ function AnalyticsPage() {
   const overview = useMemo(() => {
     const totalMembers = members.length;
     const r3plus = members.filter((m) => {
-      const r = getRank(calculateTotalScore(m.metrics), m.leadershipRank, thresholds, maxTotal);
+      const r = getRank(calculateTotalScore(m.metrics, scoringMetrics), m.leadershipRank, thresholds, maxTotal);
       return r === "R3" || r === "R4" || r === "R5";
     }).length;
     // attendance % over last 4 weeks across all status events
@@ -188,10 +188,10 @@ function AnalyticsPage() {
     const attendancePct = total > 0 ? (attended / total) * 100 : 0;
     const avgScore =
       members.length > 0
-        ? members.reduce((a, m) => a + calculateTotalScore(m.metrics), 0) / members.length
+        ? members.reduce((a, m) => a + calculateTotalScore(m.metrics, scoringMetrics), 0) / members.length
         : 0;
     return { totalMembers, r3plus, attendancePct, avgScore };
-  }, [members, thresholds, maxTotal, activeWeeks, eventTypes, getStatus]);
+  }, [members, thresholds, maxTotal, activeWeeks, eventTypes, getStatus, scoringMetrics]);
 
   // -------- Attendance over time (per status event) --------
   const allWeeksSorted = useMemo(() => {
@@ -361,7 +361,7 @@ function AnalyticsPage() {
   function exportLeaderboard() {
     const rows = members
       .map((m) => {
-        const score = calculateTotalScore(m.metrics);
+        const score = calculateTotalScore(m.metrics, scoringMetrics);
         const rank = getRank(score, m.leadershipRank, thresholds, maxTotal);
         const memberSnaps = history
           .filter((h) => h.memberId === m.id)
@@ -410,7 +410,7 @@ function AnalyticsPage() {
   const leaderboard = useMemo(() => {
     return members
       .map((m) => {
-        const score = calculateTotalScore(m.metrics);
+        const score = calculateTotalScore(m.metrics, scoringMetrics);
         const rank = getRank(score, m.leadershipRank, thresholds, maxTotal);
         const memberSnaps = history
           .filter((h) => h.memberId === m.id)
@@ -419,7 +419,7 @@ function AnalyticsPage() {
         const improvement = earliest ? score - earliest.totalScore : 0;
         return { id: m.id, name: m.name, rank, score, power: m.power, improvement };
       });
-  }, [members, thresholds, maxTotal, history]);
+  }, [members, thresholds, maxTotal, history, scoringMetrics]);
 
   const RANK_COLORS: Record<string, string> = {
     R1: "hsl(var(--rank-r1, 0 60% 55%))",
