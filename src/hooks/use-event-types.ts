@@ -16,6 +16,29 @@ export function useEventTypes() {
   const fetchEventTypes = useCallback(async () => {
     const { data } = await supabase.from("event_types").select("*").order("created_at");
     if (data) {
+      const hasEngagement = data.some((r: any) => r.key === "engagement");
+      if (!hasEngagement) {
+        await supabase.from("event_types").insert({
+          key: "engagement",
+          name: "Engagement",
+          has_svs_toggle: false,
+          is_optional: false,
+          input_type: "status",
+          point_weight: 1,
+        } as any);
+        const refetch = await supabase.from("event_types").select("*").order("created_at");
+        if (refetch.data) {
+          setEventTypes(refetch.data.map((r: any) => ({
+            key: r.key,
+            name: r.name,
+            hasSvsToggle: r.has_svs_toggle,
+            isOptional: r.is_optional ?? false,
+            inputType: r.input_type === "rank" ? "rank" : "status",
+            pointWeight: r.point_weight ?? 1,
+          })));
+          return;
+        }
+      }
       setEventTypes(data.map((r) => ({
         key: r.key,
         name: r.name,
