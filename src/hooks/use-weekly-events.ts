@@ -143,6 +143,34 @@ export function useWeeklyEvents() {
     return valueCache[week.id]?.[memberId]?.[eventKey] ?? null;
   }
 
+  /**
+   * Returns true if any member has a recorded entry for the given event in the
+   * given week. Used to skip not-yet-occurred events from the weekly total so
+   * the rank percent isn't deflated mid-week.
+   * - status events: any actual row in event_attendance counts (regardless of value)
+   * - rank events (AvA): only counts if at least one member has a value > 0
+   */
+  function hasAnyEntries(weekId: string, eventKey: string, inputType: "status" | "rank"): boolean {
+    const all = [...activeWeeks, ...archivedWeeks];
+    const week = all.find((w) => w.weekId === weekId);
+    if (!week) return false;
+    if (inputType === "rank") {
+      const memberVals = valueCache[week.id];
+      if (!memberVals) return false;
+      for (const memberId of Object.keys(memberVals)) {
+        const v = memberVals[memberId]?.[eventKey];
+        if (v != null && v > 0) return true;
+      }
+      return false;
+    }
+    const memberStatuses = attendanceCache[week.id];
+    if (!memberStatuses) return false;
+    for (const memberId of Object.keys(memberStatuses)) {
+      if (memberStatuses[memberId]?.[eventKey] !== undefined) return true;
+    }
+    return false;
+  }
+
   async function setStatus(weekId: string, memberId: string, eventKey: string, status: EventStatus, value?: number | null) {
     const dbId = getWeekDbId(weekId);
     if (!dbId) return;
