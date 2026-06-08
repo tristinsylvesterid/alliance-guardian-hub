@@ -42,11 +42,11 @@ interface MemberFormDialogProps {
   onArchive?: (member: Member) => void;
 }
 
-function getDefaultMetrics(): Record<string, number | boolean | string> {
+function getDefaultMetrics(defs: MetricDefinition[]): Record<string, number | boolean | string> {
   const m: Record<string, number | boolean | string> = {};
-  for (const def of METRIC_DEFINITIONS) {
+  for (const def of defs) {
     if (def.type === "boolean") m[def.key] = false;
-    else if (def.type === "tier") m[def.key] = "T8";
+    else if (def.type === "tier") m[def.key] = def.brackets[0]?.condition ?? "T8";
     else m[def.key] = 0;
   }
   return m;
