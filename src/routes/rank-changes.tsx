@@ -1,34 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RankBadge } from "@/components/RankBadge";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { ArrowRight, TrendingUp, TrendingDown } from "lucide-react";
 import { useMembers } from "@/hooks/use-members";
-import { useScoringConfig } from "@/hooks/use-scoring-config";
-import { useRankThresholds } from "@/hooks/use-rank-thresholds";
-import { useEventTypes } from "@/hooks/use-event-types";
-import { useWeeklyEvents } from "@/hooks/use-weekly-events";
-import { useEventScoring } from "@/hooks/use-event-scoring";
-import {
-  AVA_METRIC,
-  calculateEventPoints,
-  calculateTotalScore,
-  getRank,
-  type EventPointSource,
-  type Rank,
-} from "@/lib/scoring";
+import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
+import { type Rank } from "@/lib/scoring";
 
 export const Route = createFileRoute("/rank-changes")({
   component: RankChangesPage,
   head: () => ({
     meta: [
       { title: "Weekly Rank Changes | Last Z Alliance Manager" },
-      { name: "description", content: "Members whose rank tier changed between last week and this week" },
+      { name: "description", content: "Members whose rank tier changed between the last two archived weeks" },
     ],
   }),
 });
@@ -38,87 +25,19 @@ function rankIndex(r: Rank): number {
   return RANK_ORDER.indexOf(r);
 }
 
-interface PriorSnapshot {
-  metrics: Record<string, number | boolean | string>;
-  leadershipRank?: "R4" | "R5" | null;
-}
-
 function RankChangesPage() {
   const { members } = useMembers();
-  const { maxTotal: BASE_MAX_POINTS, metrics: scoringMetrics } = useScoringConfig();
-  const avaMetric = scoringMetrics.find((m) => m.key === "avaWeeklyScore") ?? AVA_METRIC;
-  const { thresholds } = useRankThresholds();
-  const { eventTypes } = useEventTypes();
-  const { activeWeeks, archivedWeeks, isEventActive, getStatus, getValue } = useWeeklyEvents();
-  const { getEventPoints, eventMaxThisWeek } = useEventScoring();
-
-  const currentWeek = activeWeeks[0] ?? null;
-  // "Previous week" for live event-bonus comparison: the next-most-recent week
-  // (active or archived) before the current one.
-  const priorWeek = useMemo(() => {
-    const all = [...activeWeeks, ...archivedWeeks].sort((a, b) =>
-      a.weekId < b.weekId ? 1 : -1,
-    );
-    if (!currentWeek) return null;
-    const idx = all.findIndex((w) => w.weekId === currentWeek.weekId);
-    return idx >= 0 ? all[idx + 1] ?? null : all[0] ?? null;
-  }, [activeWeeks, archivedWeeks, currentWeek]);
-
-  // Snapshots captured at the moment current week started — i.e. end of
-  // previous week. source = 'auto_weekly', week_id = currentWeek.weekId.
-  const [priorSnapshots, setPriorSnapshots] = useState<Record<string, PriorSnapshot>>({});
-  const [loading, setLoading] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    if (!currentWeek) {
-      setPriorSnapshots({});
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("member_metrics_history")
-        .select("member_id,metrics,leadership_rank,recorded_at")
-        .eq("week_id", currentWeek.weekId)
-        .eq("source", "auto_weekly")
-        .order("recorded_at", { ascending: false });
-      if (cancelled) return;
-      const map: Record<string, PriorSnapshot> = {};
-      for (const row of data ?? []) {
-        if (map[row.member_id]) continue; // keep latest only
-        map[row.member_id] = {
-          metrics: (row.metrics ?? {}) as Record<string, number | boolean | string>,
-          leadershipRank: (row.leadership_rank as "R4" | "R5" | null) ?? null,
-        };
-      }
-      setPriorSnapshots(map);
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [currentWeek?.weekId, reloadKey]);
-
-  // Prior-week event bonus per member (live, computed from prior week's attendance).
-  const getPriorEventPoints = useMemo(() => {
-    if (!priorWeek) return (_memberId: string) => ({ earned: 0, max: 0 });
-    return (memberId: string) => {
-      const sources: EventPointSource[] = eventTypes.map((e) => ({
-        key: e.key,
-        inputType: e.inputType,
-        pointWeight: e.pointWeight ?? 1,
-        isActive: isEventActive(priorWeek.weekId, e.key),
-        status: getStatus(priorWeek.weekId, memberId, e.key),
-        value: getValue(priorWeek.weekId, memberId, e.key),
-      }));
-      return calculateEventPoints(sources, avaMetric);
-    };
-  }, [priorWeek, eventTypes, isEventActive, getStatus, getValue, avaMetric]);
+  const {
+    latest,
+    previous,
+    latestByMember,
+    previousByMember,
+    hasTwoArchives,
+    loading,
+  } = useArchivedSnapshot();
 
   const rows = useMemo(() => {
-    if (!currentWeek) return [];
+    if (!hasTwoArchives) return [];
     const out: Array<{
       id: string;
       name: string;
@@ -130,35 +49,12 @@ function RankChangesPage() {
     }> = [];
 
     for (const m of members) {
-      const snap = priorSnapshots[m.id];
-      if (!snap) continue; // no baseline → skip
-
-      // Previous rank: snapshot metrics + prior-week event bonus
-      const prevBase = calculateTotalScore(snap.metrics, scoringMetrics);
-      const prevEv = getPriorEventPoints(m.id);
-      const prevScore = prevBase + prevEv.earned;
-      const prevMax = BASE_MAX_POINTS + prevEv.max;
-      const previousRank = getRank(
-        prevScore,
-        snap.leadershipRank ?? undefined,
-        thresholds,
-        prevMax,
-      );
-
-      // Current rank: live metrics + current-week event bonus
-      const curBase = calculateTotalScore(m.metrics, scoringMetrics);
-      const curEv = getEventPoints(m.id);
-      const curScore = curBase + curEv.earned;
-      const curMax = BASE_MAX_POINTS + curEv.max;
-      const currentRank = getRank(
-        curScore,
-        m.leadershipRank,
-        thresholds,
-        curMax,
-      );
-
+      const prev = previousByMember[m.id];
+      const cur = latestByMember[m.id];
+      if (!prev || !cur) continue;
+      const previousRank = (prev.rank as Rank | null) ?? "R1";
+      const currentRank = (cur.rank as Rank | null) ?? "R1";
       if (previousRank === currentRank) continue;
-
       const delta = rankIndex(currentRank) - rankIndex(previousRank);
       out.push({
         id: m.id,
@@ -173,7 +69,7 @@ function RankChangesPage() {
 
     out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta) || a.name.localeCompare(b.name));
     return out;
-  }, [members, priorSnapshots, getPriorEventPoints, getEventPoints, BASE_MAX_POINTS, thresholds, currentWeek, scoringMetrics]);
+  }, [members, latestByMember, previousByMember, hasTwoArchives]);
 
   const promotions = rows.filter((r) => r.direction === "up").length;
   const demotions = rows.filter((r) => r.direction === "down").length;
@@ -181,38 +77,21 @@ function RankChangesPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-heading text-3xl font-bold tracking-wide text-gold">
-              Weekly Rank Changes
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {currentWeek && priorWeek
-                ? <>Comparing <span className="text-foreground">{priorWeek.label}</span> <ArrowRight className="inline h-3 w-3" /> <span className="text-foreground">{currentWeek.label}</span> · max {BASE_MAX_POINTS + eventMaxThisWeek} pts</>
-                : "Live comparison of last week's final rank to this week's current rank."}
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            className="border-gold/30 text-gold hover:bg-gold/10"
-            onClick={() => setReloadKey((k) => k + 1)}
-            disabled={loading}
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+        <div>
+          <h1 className="font-heading text-3xl font-bold tracking-wide text-gold">
+            Weekly Rank Changes
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {hasTwoArchives && latest && previous
+              ? <>Comparing <span className="text-foreground">{previous.label}</span> <ArrowRight className="inline h-3 w-3" /> <span className="text-foreground">{latest.label}</span></>
+              : "Comparison of the two most recent archived weeks."}
+          </p>
         </div>
 
-        {!currentWeek ? (
+        {!hasTwoArchives ? (
           <Card>
             <CardContent className="py-10 text-center text-muted-foreground">
-              Start a new week on the Events page to begin tracking rank changes.
-            </CardContent>
-          </Card>
-        ) : !priorWeek ? (
-          <Card>
-            <CardContent className="py-10 text-center text-muted-foreground">
-              Need at least one previous week to compare.
+              {loading ? "Loading…" : "Need at least 2 archived weeks to compare. Archive a week from the Events page."}
             </CardContent>
           </Card>
         ) : (
@@ -246,13 +125,13 @@ function RankChangesPage() {
               <CardHeader>
                 <CardTitle className="font-heading text-gold">Rank Movement</CardTitle>
                 <CardDescription>
-                  Only members whose rank tier changed are listed. Updates live as events and member profiles change.
+                  Only members whose rank tier changed between the two most recent archived weeks are listed.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {rows.length === 0 ? (
                   <div className="py-8 text-center text-sm text-muted-foreground">
-                    No rank changes this week yet.
+                    No rank changes between these two weeks.
                   </div>
                 ) : (
                   <Table>
