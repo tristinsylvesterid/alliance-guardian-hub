@@ -249,37 +249,9 @@ function EventsPage() {
 
         <Card>
           <CardHeader>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <CardTitle className="font-heading text-gold">
-                Attendance Roster — {selectedWeek?.label ?? ""}
-              </CardTitle>
-              {selectedWeek && (
-                <div className="flex items-center gap-2">
-                  <span className="hidden text-xs uppercase tracking-wide text-muted-foreground sm:inline">
-                    Polls (1pt)
-                  </span>
-                  <Input
-                    placeholder="New poll name"
-                    value={newPollName}
-                    onChange={(e) => setNewPollName(e.target.value)}
-                    className="w-56 h-9"
-                    disabled={!isCurrentWeek}
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-gold/30 text-gold hover:bg-gold/10"
-                    disabled={!isCurrentWeek || !newPollName.trim()}
-                    onClick={async () => {
-                      await addPoll(selectedWeek.id, newPollName.trim());
-                      setNewPollName("");
-                    }}
-                  >
-                    <Plus className="mr-1 h-4 w-4" /> Add Poll
-                  </Button>
-                </div>
-              )}
-            </div>
+            <CardTitle className="font-heading text-gold">
+              Attendance Roster — {selectedWeek?.label ?? ""}
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
