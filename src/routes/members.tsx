@@ -175,8 +175,16 @@ function MembersPage() {
                           })()}
                         </div>
                       </TableCell>
-                      <TableCell><RankBadge rank={member.rank} /></TableCell>
-                      <TableCell className="text-center font-bold text-gold">{member.score}</TableCell>
+                      <TableCell>
+                        {member.hasSnap ? (
+                          <RankBadge rank={member.rank} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center font-bold text-gold">
+                        {member.hasSnap ? member.score : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
                       <TableCell className="text-center text-sm">
                         {(() => {
                           if (!member.updatedAt) return <span className="text-muted-foreground">—</span>;
