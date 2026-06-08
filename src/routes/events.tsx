@@ -49,9 +49,9 @@ function EventsPage() {
     if (bi === -1) return -1;
     return ai - bi;
   });
-  const { activeWeeks, getStatus, getValue, setStatus, isEventActive, setEventActive, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
+  const { activeWeeks, getStatus, getValue, setStatus, isEventActive, setEventActive, startNewWeek, archiveWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
-  const { getEventPoints } = useEventScoring();
+  const { getEventPoints, eventTypes: scoringEventTypes, avaMetric } = useEventScoring();
   const { metrics: scoringMetrics, maxTotal: BASE_MAX_POINTS } = useScoringConfig();
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
 
@@ -76,8 +76,29 @@ function EventsPage() {
     await setStatus(selectedWeekId, memberId, eventKey, status, rankValue);
   }
 
+  function buildArchiveContext() {
+    return {
+      members: rawMembers,
+      scoringMetrics,
+      thresholds,
+      baseMaxPoints: BASE_MAX_POINTS,
+      eventTypes: scoringEventTypes.map((e) => ({
+        key: e.key,
+        inputType: e.inputType,
+        pointWeight: e.pointWeight ?? 1,
+      })),
+      avaMetric,
+    };
+  }
+
   function handleStartNewWeek() {
-    startNewWeek(members);
+    startNewWeek(buildArchiveContext());
+  }
+
+  async function handleArchiveSelected() {
+    if (!selectedWeekId) return;
+    await archiveWeek(selectedWeekId, buildArchiveContext());
+    setSelectedWeekId(activeWeeks.find(w => w.weekId !== selectedWeekId)?.weekId ?? "");
   }
 
   if (!activeWeeks.find((w) => w.weekId === selectedWeekId) && activeWeeks[0]) {
