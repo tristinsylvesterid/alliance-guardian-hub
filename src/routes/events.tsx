@@ -13,7 +13,7 @@ import { RankBadge } from "@/components/RankBadge";
 import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents, type EventStatus } from "@/hooks/use-weekly-events";
-import { useWeeklyPolls } from "@/hooks/use-weekly-polls";
+
 import { calculateTotalScore, getRank, calculateMetricPoints, AVA_METRIC, MAX_TOTAL_POINTS } from "@/lib/scoring";
 import { useEventScoring } from "@/hooks/use-event-scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
@@ -40,7 +40,7 @@ function StatusIcon({ status }: { status: EventStatus }) {
 function EventsPage() {
   const { members: rawMembers } = useMembers();
   const { eventTypes: rawEventTypes } = useEventTypes();
-  const EVENT_ORDER = ["ice_pit_1", "glory_war", "ice_pit_2", "ice_pit_3", "capital", "svs", "ava"];
+  const EVENT_ORDER = ["ice_pit_1", "glory_war", "ice_pit_2", "ice_pit_3", "capital", "canyon_clash", "ava", "svs", "engagement"];
   const eventTypes = [...rawEventTypes].sort((a, b) => {
     const ai = EVENT_ORDER.indexOf(a.key);
     const bi = EVENT_ORDER.indexOf(b.key);
@@ -50,10 +50,8 @@ function EventsPage() {
     return ai - bi;
   });
   const { activeWeeks, getStatus, getValue, setStatus, isEventActive, setEventActive, startNewWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
-  const { getPollsForWeek, addPoll, removePoll, getResponse, setResponse } = useWeeklyPolls();
   const { thresholds } = useRankThresholds();
   const { getEventPoints } = useEventScoring();
-  const [newPollName, setNewPollName] = useState("");
   const [selectedWeekId, setSelectedWeekId] = useState(activeWeeks[0]?.weekId ?? "");
 
 
@@ -251,37 +249,9 @@ function EventsPage() {
 
         <Card>
           <CardHeader>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <CardTitle className="font-heading text-gold">
-                Attendance Roster — {selectedWeek?.label ?? ""}
-              </CardTitle>
-              {selectedWeek && (
-                <div className="flex items-center gap-2">
-                  <span className="hidden text-xs uppercase tracking-wide text-muted-foreground sm:inline">
-                    Polls (1pt)
-                  </span>
-                  <Input
-                    placeholder="New poll name"
-                    value={newPollName}
-                    onChange={(e) => setNewPollName(e.target.value)}
-                    className="w-56 h-9"
-                    disabled={!isCurrentWeek}
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-gold/30 text-gold hover:bg-gold/10"
-                    disabled={!isCurrentWeek || !newPollName.trim()}
-                    onClick={async () => {
-                      await addPoll(selectedWeek.id, newPollName.trim());
-                      setNewPollName("");
-                    }}
-                  >
-                    <Plus className="mr-1 h-4 w-4" /> Add Poll
-                  </Button>
-                </div>
-              )}
-            </div>
+            <CardTitle className="font-heading text-gold">
+              Attendance Roster — {selectedWeek?.label ?? ""}
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -298,30 +268,6 @@ function EventsPage() {
                       )}
                     </TableHead>
                   ))}
-                  {selectedWeek && getPollsForWeek(selectedWeek.id).map((p, idx) => {
-                    const count = members.filter((m) => getResponse(p.id, m.id)).length;
-                    return (
-                      <TableHead
-                        key={p.id}
-                        className={`text-gold-muted font-heading text-center ${idx === 0 ? "border-l border-border/60" : ""}`}
-                      >
-                        <div className="flex items-center justify-center gap-1">
-                          <span>{p.name}</span>
-                          <span className="text-xs text-muted-foreground">({count}/{members.length})</span>
-                          {isCurrentWeek && (
-                            <button
-                              type="button"
-                              onClick={() => removePoll(p.id)}
-                              className="ml-1 text-muted-foreground hover:text-destructive"
-                              title="Delete poll"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </TableHead>
-                    );
-                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -398,33 +344,6 @@ function EventsPage() {
                             </DropdownMenu>
                           ) : (
                             <StatusIcon status={status} />
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                    {selectedWeek && getPollsForWeek(selectedWeek.id).map((p, idx) => {
-                      const responded = getResponse(p.id, m.id);
-                      return (
-                        <TableCell
-                          key={p.id}
-                          className={`text-center ${idx === 0 ? "border-l border-border/60" : ""}`}
-                        >
-                          {isCurrentWeek ? (
-                            <button
-                              type="button"
-                              onClick={() => setResponse(p.id, m.id, !responded)}
-                              className="inline-flex items-center rounded px-2 py-1 hover:bg-accent transition-colors"
-                            >
-                              {responded ? (
-                                <Check className="h-4 w-4 text-gold" />
-                              ) : (
-                                <X className="h-4 w-4 text-destructive/60" />
-                              )}
-                            </button>
-                          ) : responded ? (
-                            <Check className="inline h-4 w-4 text-gold" />
-                          ) : (
-                            <X className="inline h-4 w-4 text-destructive/60" />
                           )}
                         </TableCell>
                       );
