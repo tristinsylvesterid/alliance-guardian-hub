@@ -105,8 +105,7 @@ function EventsPage() {
     setSelectedWeekId(activeWeeks[0].weekId);
   }
 
-  // AvA bracket scoring (per-event, not a member metric) — sourced from editable scoring config.
-  const avaMetric = scoringMetrics.find((m) => m.key === "avaWeeklyScore") ?? AVA_METRIC;
+  // avaMetric already provided by useEventScoring above.
 
 
 
