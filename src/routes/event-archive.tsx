@@ -31,7 +31,7 @@ function StatusIcon({ status }: { status: EventStatus }) {
 
 function EventArchivePage() {
   const { members: rawMembers } = useMembers();
-  const { eventTypes } = useEventTypes();
+  const { eventTypes: allEventTypes } = useEventTypes();
   const { archivedWeeks, getStatus } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
   const { metrics: liveMetrics, maxTotal } = useScoringConfig();
@@ -43,6 +43,18 @@ function EventArchivePage() {
     const score = calculateTotalScore(m.metrics, liveMetrics);
     const rank = getRank(score, m.leadershipRank, thresholds, maxTotal);
     return { ...m, score, rank };
+  });
+
+  // For history: show every event type that's either still active OR has any
+  // attendance data recorded for the selected week (so archived events from
+  // past seasons still render with their preserved data).
+  const eventTypes = allEventTypes.filter((e) => {
+    if (!e.archivedAt) return true;
+    if (!selectedWeek) return false;
+    return members.some((m) => {
+      const s = getStatus(selectedWeek.weekId, m.id, e.key);
+      return s === "check" || s === "x";
+    });
   });
 
   if (archivedWeeks.length === 0) {
