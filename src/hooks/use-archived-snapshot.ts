@@ -1,9 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeeklyEvents, type WeeklyEventData } from "@/hooks/use-weekly-events";
 import { useEventScoring } from "@/hooks/use-event-scoring";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
-import type { Rank } from "@/lib/scoring";
+import { useRankThresholds } from "@/hooks/use-rank-thresholds";
+import { getRank, type Rank } from "@/lib/scoring";
+
 
 export interface MemberSnapshot {
   totalScore: number;
