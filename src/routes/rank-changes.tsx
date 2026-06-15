@@ -7,7 +7,7 @@ import { RankBadge } from "@/components/RankBadge";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, TrendingUp, TrendingDown } from "lucide-react";
 import { useMembers } from "@/hooks/use-members";
-import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
+import { useArchivedWindowAverages } from "@/hooks/use-archived-snapshot";
 import { type Rank } from "@/lib/scoring";
 
 export const Route = createFileRoute("/rank-changes")({
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/rank-changes")({
   head: () => ({
     meta: [
       { title: "Weekly Rank Changes | Last Z Alliance Manager" },
-      { name: "description", content: "Members whose rank tier changed between the last two archived weeks" },
+      { name: "description", content: "Members whose rank tier changed between the last two 4-week windows" },
     ],
   }),
 });
@@ -25,19 +25,21 @@ function rankIndex(r: Rank): number {
   return RANK_ORDER.indexOf(r);
 }
 
+const WINDOW = 4;
+
 function RankChangesPage() {
   const { members } = useMembers();
   const {
-    latest,
-    previous,
-    latestByMember,
-    previousByMember,
-    hasTwoArchives,
+    recentWindow,
+    priorWindow,
+    byMember,
+    hasFullWindows,
+    archivedCount,
     loading,
-  } = useArchivedSnapshot();
+  } = useArchivedWindowAverages(WINDOW);
 
   const rows = useMemo(() => {
-    if (!hasTwoArchives) return [];
+    if (!hasFullWindows) return [];
     const out: Array<{
       id: string;
       name: string;
@@ -49,19 +51,16 @@ function RankChangesPage() {
     }> = [];
 
     for (const m of members) {
-      const prev = previousByMember[m.id];
-      const cur = latestByMember[m.id];
-      if (!prev || !cur) continue;
-      const previousRank = (prev.rank as Rank | null) ?? "R1";
-      const currentRank = (cur.rank as Rank | null) ?? "R1";
-      if (previousRank === currentRank) continue;
-      const delta = rankIndex(currentRank) - rankIndex(previousRank);
+      const entry = byMember[m.id];
+      if (!entry) continue;
+      if (entry.priorRank === entry.recentRank) continue;
+      const delta = rankIndex(entry.recentRank) - rankIndex(entry.priorRank);
       out.push({
         id: m.id,
         name: m.name,
         leadershipRank: m.leadershipRank,
-        previousRank,
-        currentRank,
+        previousRank: entry.priorRank,
+        currentRank: entry.recentRank,
         direction: delta > 0 ? "up" : "down",
         delta,
       });
@@ -69,10 +68,19 @@ function RankChangesPage() {
 
     out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta) || a.name.localeCompare(b.name));
     return out;
-  }, [members, latestByMember, previousByMember, hasTwoArchives]);
+  }, [members, byMember, hasFullWindows]);
 
   const promotions = rows.filter((r) => r.direction === "up").length;
   const demotions = rows.filter((r) => r.direction === "down").length;
+
+  const recentLabel =
+    recentWindow.length > 0
+      ? `${recentWindow[recentWindow.length - 1].label} – ${recentWindow[0].label}`
+      : "";
+  const priorLabel =
+    priorWindow.length > 0
+      ? `${priorWindow[priorWindow.length - 1].label} – ${priorWindow[0].label}`
+      : "";
 
   return (
     <AppLayout>
@@ -82,16 +90,18 @@ function RankChangesPage() {
             Weekly Rank Changes
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {hasTwoArchives && latest && previous
-              ? <>Comparing <span className="text-foreground">{previous.label}</span> <ArrowRight className="inline h-3 w-3" /> <span className="text-foreground">{latest.label}</span></>
-              : "Comparison of the two most recent archived weeks."}
+            {hasFullWindows
+              ? <>Comparing prior 4-week avg <span className="text-foreground">{priorLabel}</span> <ArrowRight className="inline h-3 w-3" /> recent 4-week avg <span className="text-foreground">{recentLabel}</span></>
+              : `Rolling 4-week average vs the previous 4-week average.`}
           </p>
         </div>
 
-        {!hasTwoArchives ? (
+        {!hasFullWindows ? (
           <Card>
             <CardContent className="py-10 text-center text-muted-foreground">
-              {loading ? "Loading…" : "Need at least 2 archived weeks to compare. Archive a week from the Events page."}
+              {loading
+                ? "Loading…"
+                : `Need at least ${WINDOW * 2} archived weeks to compare rolling 4-week averages. You have ${archivedCount}.`}
             </CardContent>
           </Card>
         ) : (
@@ -125,13 +135,13 @@ function RankChangesPage() {
               <CardHeader>
                 <CardTitle className="font-heading text-gold">Rank Movement</CardTitle>
                 <CardDescription>
-                  Only members whose rank tier changed between the two most recent archived weeks are listed.
+                  Only members whose averaged rank tier changed between the two 4-week windows are listed.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {rows.length === 0 ? (
                   <div className="py-8 text-center text-sm text-muted-foreground">
-                    No rank changes between these two weeks.
+                    No rank changes between these two windows.
                   </div>
                 ) : (
                   <Table>
