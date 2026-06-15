@@ -51,10 +51,7 @@ function EventArchivePage() {
   const eventTypes = allEventTypes.filter((e) => {
     if (!e.archivedAt) return true;
     if (!selectedWeek) return false;
-    return members.some((m) => {
-      const s = getStatus(selectedWeek.weekId, m.id, e.key);
-      return s === "check" || s === "x";
-    });
+    return hasAnyEntries(selectedWeek.weekId, e.key, e.inputType);
   });
 
   if (archivedWeeks.length === 0) {
