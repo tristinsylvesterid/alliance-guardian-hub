@@ -108,7 +108,12 @@ function EventArchivePage() {
                 return (
                   <Card key={event.key}>
                     <CardHeader className="pb-2">
-                      <CardTitle className="font-heading text-gold">{event.name}</CardTitle>
+                      <CardTitle className="font-heading text-gold flex items-center gap-2">
+                        {event.name}
+                        {event.archivedAt && (
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground border border-border rounded px-1.5 py-0.5">Archived</span>
+                        )}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       {isSvsOff ? (
