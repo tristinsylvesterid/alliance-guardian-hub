@@ -17,7 +17,7 @@ import { useMembers } from "@/hooks/use-members";
 import { snapshotAllMembers } from "@/lib/metrics-history";
 import { RankBadge } from "@/components/RankBadge";
 import type { Rank } from "@/lib/scoring";
-import { Plus, Trash2, Pencil, Save, X, Database } from "lucide-react";
+import { Plus, Trash2, Pencil, Save, X, Database, Archive, RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -30,10 +30,10 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const { eventTypes, addEventType, removeEventType, setPointWeight } = useEventTypes();
+  const { activeEventTypes, archivedEventTypes, addEventType, archiveEventType, restoreEventType, deleteEventTypePermanently, setPointWeight } = useEventTypes();
   const { metrics, maxTotal, updateBracket, addBracket, removeBracket, recalcMaxPoints } = useScoringConfig();
   const avaMax = metrics.find((m) => m.key === "ava")?.maxPoints ?? 0;
-  const eventMax = eventTypes.reduce(
+  const eventMax = activeEventTypes.reduce(
     (sum, e) => sum + (e.inputType === "rank" ? avaMax : (e.pointWeight ?? 0)),
     0
   );
