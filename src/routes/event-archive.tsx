@@ -31,8 +31,8 @@ function StatusIcon({ status }: { status: EventStatus }) {
 
 function EventArchivePage() {
   const { members: rawMembers } = useMembers();
-  const { eventTypes } = useEventTypes();
-  const { archivedWeeks, getStatus } = useWeeklyEvents();
+  const { eventTypes: allEventTypes } = useEventTypes();
+  const { archivedWeeks, getStatus, hasAnyEntries } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
   const { metrics: liveMetrics, maxTotal } = useScoringConfig();
   const [selectedWeekId, setSelectedWeekId] = useState(archivedWeeks[0]?.weekId ?? "");
@@ -43,6 +43,15 @@ function EventArchivePage() {
     const score = calculateTotalScore(m.metrics, liveMetrics);
     const rank = getRank(score, m.leadershipRank, thresholds, maxTotal);
     return { ...m, score, rank };
+  });
+
+  // For history: show every event type that's either still active OR has any
+  // attendance data recorded for the selected week (so archived events from
+  // past seasons still render with their preserved data).
+  const eventTypes = allEventTypes.filter((e) => {
+    if (!e.archivedAt) return true;
+    if (!selectedWeek) return false;
+    return hasAnyEntries(selectedWeek.weekId, e.key, e.inputType);
   });
 
   if (archivedWeeks.length === 0) {
@@ -99,7 +108,12 @@ function EventArchivePage() {
                 return (
                   <Card key={event.key}>
                     <CardHeader className="pb-2">
-                      <CardTitle className="font-heading text-gold">{event.name}</CardTitle>
+                      <CardTitle className="font-heading text-gold flex items-center gap-2">
+                        {event.name}
+                        {event.archivedAt && (
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground border border-border rounded px-1.5 py-0.5">Archived</span>
+                        )}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       {isSvsOff ? (

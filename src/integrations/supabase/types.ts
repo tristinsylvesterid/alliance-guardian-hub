@@ -124,6 +124,8 @@ export type Database = {
       }
       event_types: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           has_svs_toggle: boolean
           id: string
@@ -134,6 +136,8 @@ export type Database = {
           point_weight: number
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           has_svs_toggle?: boolean
           id?: string
@@ -144,6 +148,8 @@ export type Database = {
           point_weight?: number
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           has_svs_toggle?: boolean
           id?: string

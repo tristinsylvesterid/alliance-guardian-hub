@@ -39,7 +39,7 @@ function StatusIcon({ status }: { status: EventStatus }) {
 
 function EventsPage() {
   const { members: rawMembers } = useMembers();
-  const { eventTypes: rawEventTypes } = useEventTypes();
+  const { activeEventTypes: rawEventTypes } = useEventTypes();
   const EVENT_ORDER = ["ice_pit_1", "glory_war", "ice_pit_2", "ice_pit_3", "capital", "canyon_clash", "ava", "svs", "engagement"];
   const eventTypes = [...rawEventTypes].sort((a, b) => {
     const ai = EVENT_ORDER.indexOf(a.key);

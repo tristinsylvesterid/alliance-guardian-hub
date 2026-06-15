@@ -1,55 +1,34 @@
 ## Goal
+Replace hard-delete of event types with a soft "archive" so historical attendance from past weeks is never lost again, and surface archived events read-only on history views.
 
-All score-displaying pages read from the **last archived week's snapshot** (fixed values + that week's event totals), not the live in-progress week. Events page stays live for data entry. Rank Changes compares the two most recently archived weeks. Before any archives exist, show an empty placeholder.
+## Schema change
+Add to `event_types`:
+- `archived_at timestamptz null`
+- `archived_by uuid null` (optional, for audit)
 
-## How archiving works today (and the gap)
+No data migration needed for existing rows.
 
-When you start a new week, the oldest active week auto-flips to `is_archived = true` and a `member_metrics_history` row is upserted — but the snapshot is written **for the new week** and **without that week's event bonus**. So archived snapshots today don't include event points.
+Note on past data: the Ice Pits attendance rows are already gone (verified `event_attendance` has 0 rows for `ice_pits`). This plan prevents future loss; it does not recover the deleted Ice Pits records.
 
-## Plan
+## Hook changes (`use-event-types.ts`)
+- `fetchEventTypes` returns ALL rows (including archived) with `archivedAt` field.
+- Expose two derived lists: `activeEventTypes` (archived_at IS NULL) and `eventTypes` (all, for history rendering).
+- Replace `removeEventType` with:
+  - `archiveEventType(key)` → `UPDATE event_types SET archived_at = now() WHERE key = $1`
+  - `restoreEventType(key)` → `UPDATE event_types SET archived_at = NULL ...`
+  - `deleteEventTypePermanently(key)` → hard delete + cascade clear `event_attendance` and `weekly_event_toggles` rows for that key (only via an explicit "Delete forever" confirmation; warns about history loss).
 
-### 1. Fix the archive snapshot
-
-Change `startNewWeek` so that, at the moment a week archives:
-- Build event bonuses for the **week being archived** (per member, using current event toggles + attendance + AvA rank).
-- Snapshot each member with that bonus → `member_metrics_history` keyed by `week_id = <archived weekId>`, with `total_score` = base + earned and `rank` computed against `baseMax + eventMax`.
-- Continue to seed a baseline snapshot for the new week (no events yet) so the new week exists in history too.
-
-This makes each archived week a complete, frozen record: per-member `total_score`, `rank`, the metric values used, and the event bonus baked in.
-
-### 2. New hook: `useArchivedSnapshot(weekId?)`
-
-Reads `member_metrics_history` rows for a given archived `week_id` (defaults to the most recent archived week). Returns:
-- `weekId`, `weekLabel`
-- `byMember: Record<memberId, { totalScore, rank, metrics, leadershipRank }>`
-- `exists` (false → trigger empty state)
-
-Also expose `latestArchivedWeek` and `previousArchivedWeek` selectors.
-
-### 3. Page changes (display only — Events entry stays live)
-
-- **Rankings**: read scores/ranks from `useArchivedSnapshot(latest)`. If no archived week exists, show placeholder: "No completed week yet — archive a week from the Events page to see rankings."
-- **Dashboard (index)**: rank distribution, totals, average from latest snapshot. Same placeholder if none.
-- **Members**: per-member score column reads snapshot score; current metrics still editable as today.
-- **At-Risk**: detection runs against snapshot totals.
-- **Analytics**: trend already uses history — make sure it filters to archived weeks only.
-- **Rank Changes**: compare `latestArchivedWeek` vs `previousArchivedWeek`. If fewer than 2 exist, show "Need at least 2 archived weeks to compare."
-- **Events page**: unchanged — still writes to the current active week.
-
-### 4. Backfill (one-time, optional)
-
-For any existing archived weeks that have snapshot rows without event bonus, leave as-is (history is already what it is). New behavior takes effect from the next archive.
-
-## Technical notes
-
-- No schema migration needed. `member_metrics_history` already stores `week_id`, `total_score`, `rank`, `metrics`, `leadership_rank`.
-- `snapshotMemberMetrics` already accepts `eventBonus` — only call site that needs updating is `startNewWeek`, plus we add a pass over the about-to-be-archived week with computed bonuses.
-- To compute the about-to-archive week's event bonus we need event types + toggles + attendance + AvA metric — all already accessible inside the hook.
-- Snapshot uniqueness is `(member_id, recorded_date)`. To avoid colliding with any same-day baseline snapshot, write the archive snapshot first, then the new-week baseline.
-- "Live" event totals shown only on the Events page itself (entry UX); not surfaced on Rankings/Dashboard.
+## UI changes
+- **Settings → Event types**: list active types with an "Archive" button (replaces current Remove). Add a collapsed "Archived events" section showing archived types with "Restore" and "Delete forever" actions. Archived types are excluded from `eventMax` calculation.
+- **Events page (live entry)**: render only `activeEventTypes` for columns/inputs and toggles. An archived event type cannot be toggled on for new weeks.
+- **Event Archive page (historical weeks)**: render the union of `activeEventTypes` + any archived event types that have attendance/toggle rows for the weeks being shown, so previous-season events still display with their data. Mark archived columns with an "Archived" badge.
+- **Scoring (`use-event-scoring.ts`, `archiveWeek`)**: when computing per-week event points, include archived event types only for weeks where they were active and had entries (existing `isEventActive` + `hasAnyEntries` logic already handles this once we keep them in the list). For the current/live week, archived types are skipped.
 
 ## Out of scope
+- Recovering the deleted Ice Pits attendance (data is gone).
+- Per-week archive/unarchive of event types (only global archive).
 
-- Editing snapshots after archive.
-- Re-archiving / un-archiving weeks.
-- Manual "Archive now" button — archives still happen when a new week starts.
+## Technical notes
+- Migration uses `ALTER TABLE` only; existing RLS policies cover the new columns.
+- `useEventScoring.getEventMaxForWeek` already filters by `isEventActive` per-week, so excluding archived types from the live max is a one-line filter on the list.
+- "Delete forever" must explicitly delete from `event_attendance` and `weekly_event_toggles` first (no FK cascade exists), then `event_types`.
