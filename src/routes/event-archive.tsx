@@ -32,7 +32,7 @@ function StatusIcon({ status }: { status: EventStatus }) {
 function EventArchivePage() {
   const { members: rawMembers } = useMembers();
   const { eventTypes: allEventTypes } = useEventTypes();
-  const { archivedWeeks, getStatus } = useWeeklyEvents();
+  const { archivedWeeks, getStatus, hasAnyEntries } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
   const { metrics: liveMetrics, maxTotal } = useScoringConfig();
   const [selectedWeekId, setSelectedWeekId] = useState(archivedWeeks[0]?.weekId ?? "");
