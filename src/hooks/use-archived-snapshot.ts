@@ -96,3 +96,125 @@ export function useArchivedSnapshot() {
     refresh: load,
   };
 }
+
+export interface MemberWindowAverage {
+  recentAvgScore: number;
+  priorAvgScore: number;
+  recentRank: Rank;
+  priorRank: Rank;
+  recentCount: number;
+  priorCount: number;
+  leadershipRank: "R4" | "R5" | null;
+}
+
+/**
+ * Compares the rolling average of the most recent N archived weeks against
+ * the N weeks immediately before that. Used by the Rank Changes page.
+ */
+export function useArchivedWindowAverages(windowSize = 4) {
+  const { archivedWeeks } = useWeeklyEvents();
+  const { getEventMaxForWeek } = useEventScoring();
+  const { maxTotal: BASE_MAX_POINTS } = useScoringConfig();
+  const { thresholds } = useRankThresholds();
+
+  const recentWindow = useMemo(
+    () => archivedWeeks.slice(0, windowSize),
+    [archivedWeeks, windowSize],
+  );
+  const priorWindow = useMemo(
+    () => archivedWeeks.slice(windowSize, windowSize * 2),
+    [archivedWeeks, windowSize],
+  );
+
+  const [recentByWeek, setRecentByWeek] = useState<Record<string, Record<string, MemberSnapshot>>>({});
+  const [priorByWeek, setPriorByWeek] = useState<Record<string, Record<string, MemberSnapshot>>>({});
+  const [loading, setLoading] = useState(false);
+
+  const recentIds = recentWindow.map((w) => w.weekId).join("|");
+  const priorIds = priorWindow.map((w) => w.weekId).join("|");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const all = [...recentWindow, ...priorWindow];
+    const results = await Promise.all(all.map((w) => fetchWeekSnapshot(w.weekId)));
+    const recent: Record<string, Record<string, MemberSnapshot>> = {};
+    const prior: Record<string, Record<string, MemberSnapshot>> = {};
+    recentWindow.forEach((w, i) => {
+      recent[w.weekId] = results[i];
+    });
+    priorWindow.forEach((w, i) => {
+      prior[w.weekId] = results[recentWindow.length + i];
+    });
+    setRecentByWeek(recent);
+    setPriorByWeek(prior);
+    setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recentIds, priorIds]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const hasFullWindows = archivedWeeks.length >= windowSize * 2;
+
+  const byMember = useMemo<Record<string, MemberWindowAverage>>(() => {
+    if (!hasFullWindows) return {};
+
+    const recentMaxAvg =
+      recentWindow.reduce((s, w) => s + BASE_MAX_POINTS + getEventMaxForWeek(w.weekId), 0) /
+      recentWindow.length;
+    const priorMaxAvg =
+      priorWindow.reduce((s, w) => s + BASE_MAX_POINTS + getEventMaxForWeek(w.weekId), 0) /
+      priorWindow.length;
+
+    const memberIds = new Set<string>();
+    for (const w of recentWindow) for (const id of Object.keys(recentByWeek[w.weekId] ?? {})) memberIds.add(id);
+    for (const w of priorWindow) for (const id of Object.keys(priorByWeek[w.weekId] ?? {})) memberIds.add(id);
+
+    const out: Record<string, MemberWindowAverage> = {};
+    for (const id of memberIds) {
+      let rSum = 0, rCount = 0, pSum = 0, pCount = 0;
+      let leadership: "R4" | "R5" | null = null;
+      for (const w of recentWindow) {
+        const snap = recentByWeek[w.weekId]?.[id];
+        if (!snap) continue;
+        rSum += snap.totalScore;
+        rCount += 1;
+        if (!leadership && snap.leadershipRank) leadership = snap.leadershipRank;
+      }
+      for (const w of priorWindow) {
+        const snap = priorByWeek[w.weekId]?.[id];
+        if (!snap) continue;
+        pSum += snap.totalScore;
+        pCount += 1;
+        if (!leadership && snap.leadershipRank) leadership = snap.leadershipRank;
+      }
+      if (rCount === 0 || pCount === 0) continue;
+      const recentAvgScore = rSum / rCount;
+      const priorAvgScore = pSum / pCount;
+      const leadershipForRank = leadership ?? undefined;
+      out[id] = {
+        recentAvgScore,
+        priorAvgScore,
+        recentRank: getRank(recentAvgScore, leadershipForRank, thresholds, recentMaxAvg),
+        priorRank: getRank(priorAvgScore, leadershipForRank, thresholds, priorMaxAvg),
+        recentCount: rCount,
+        priorCount: pCount,
+        leadershipRank: leadership,
+      };
+    }
+    return out;
+  }, [hasFullWindows, recentWindow, priorWindow, recentByWeek, priorByWeek, BASE_MAX_POINTS, getEventMaxForWeek, thresholds]);
+
+  return {
+    recentWindow,
+    priorWindow,
+    byMember,
+    hasFullWindows,
+    archivedCount: archivedWeeks.length,
+    windowSize,
+    loading,
+    refresh: load,
+  };
+}
+
