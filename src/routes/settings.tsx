@@ -305,7 +305,7 @@ function SettingsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {eventTypes.map((e) => (
+              {activeEventTypes.map((e) => (
                 <div key={e.key} className="flex items-center justify-between gap-3 rounded-lg bg-secondary/50 px-4 py-3">
                   <div className="flex items-center gap-3">
                     <span className="font-medium text-foreground">{e.name}</span>
@@ -339,18 +339,69 @@ function SettingsPage() {
                     )}
                     {!e.hasSvsToggle && (
                       <Button
-                        size="icon"
+                        size="sm"
                         variant="ghost"
-                        className="h-8 w-8 text-destructive/60 hover:text-destructive"
-                        onClick={() => removeEventType(e.key)}
+                        className="h-8 text-muted-foreground hover:text-foreground"
+                        onClick={async () => {
+                          const { error } = await archiveEventType(e.key);
+                          if (error) toast.error(error);
+                          else toast.success(`${e.name} archived. Past attendance preserved.`);
+                        }}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Archive className="mr-1 h-4 w-4" /> Archive
                       </Button>
                     )}
                   </div>
                 </div>
               ))}
             </div>
+
+            {archivedEventTypes.length > 0 && (
+              <div className="mt-6 space-y-2">
+                <h3 className="text-sm font-heading text-gold-muted uppercase tracking-wider">Archived Events</h3>
+                <p className="text-xs text-muted-foreground">
+                  Hidden from new weeks. Historical attendance is preserved and still visible on the Event Archive page.
+                </p>
+                {archivedEventTypes.map((e) => (
+                  <div key={e.key} className="flex items-center justify-between gap-3 rounded-lg bg-secondary/20 px-4 py-3 opacity-80">
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium text-foreground">{e.name}</span>
+                      <Badge variant="outline" className="text-xs">Archived</Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 text-gold hover:bg-gold/10"
+                        onClick={async () => {
+                          const { error } = await restoreEventType(e.key);
+                          if (error) toast.error(error);
+                          else toast.success(`${e.name} restored`);
+                        }}
+                      >
+                        <RotateCcw className="mr-1 h-4 w-4" /> Restore
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive/60 hover:text-destructive"
+                        onClick={async () => {
+                          const ok = window.confirm(
+                            `Permanently delete "${e.name}"? This will erase ALL historical attendance records for this event across every week. This cannot be undone.`
+                          );
+                          if (!ok) return;
+                          const { error } = await deleteEventTypePermanently(e.key);
+                          if (error) toast.error(error);
+                          else toast.success(`${e.name} deleted permanently`);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
