@@ -49,7 +49,7 @@ function EventsPage() {
     if (bi === -1) return -1;
     return ai - bi;
   });
-  const { activeWeeks, getStatus, getValue, setStatus, isEventActive, setEventActive, startNewWeek, archiveWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
+  const { activeWeeks, getStatus, getValue, setStatus, setStatusBulk, isEventActive, setEventActive, startNewWeek, archiveWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
   const { getEventPoints, eventTypes: scoringEventTypes, avaMetric } = useEventScoring();
   const { metrics: scoringMetrics, maxTotal: BASE_MAX_POINTS } = useScoringConfig();
