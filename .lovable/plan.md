@@ -1,41 +1,40 @@
-## Goal
-Change Rank Changes to compare the **rolling average of the last 4 archived weeks** against the **average of the 4 archived weeks before that**, instead of comparing two single weeks. Requires 8 archived weeks; otherwise show a placeholder.
+## What's happening
 
-## Hook: `use-archived-snapshot.ts`
-Add a new export `useArchivedWindowAverages(windowSize = 4)`:
+When you click **Apply** in the screenshot import dialog, the code loops through each matched member and calls `setStatus` (or `setValue`) one at a time. Two things make this fragile:
 
-- Takes `archivedWeeks` (newest first) from `useWeeklyEvents`.
-- `recentWindow` = first 4 (latest), `priorWindow` = next 4.
-- Fetches `member_metrics_history` rows for all 8 `week_id`s in two parallel queries, filtered to `source='auto_weekly'`. Dedupe per (member, week) keeping the most recent `recorded_at`.
-- For each member, compute:
-  - `recentAvgScore` = mean of `total_score` across the 4 recent weeks that have a snapshot for that member (skip missing weeks; member must appear in at least 1 of the 4 to be included in that window).
-  - `priorAvgScore` = same for prior window.
-  - `recentMaxAvg` / `priorMaxAvg` = mean of per-week `BASE_MAX + getEventMaxForWeek(weekId)` across the same weeks (so rank thresholds line up with that window's effective max).
-  - `recentRank` = `getRank(recentAvgScore, leadershipRank, thresholds, recentMaxAvg)`
-  - `priorRank` = same for prior window.
-- Returns:
-  - `recentWindow`, `priorWindow` (the WeeklyEventData arrays for labelling)
-  - `byMember: Record<memberId, { recentAvgScore, priorAvgScore, recentRank, priorRank, recentCount, priorCount, leadershipRank }>`
-  - `hasFullWindows: boolean` (true when `archivedWeeks.length >= 8`)
-  - `loading`
+1. **Errors are swallowed.** `setStatus` in `src/hooks/use-weekly-events.ts` calls `supabase.from("event_attendance").upsert(...)` but never checks the returned `error`. If the upsert fails (RLS, bad week id, etc.), the loop keeps going, the success toast fires, and you see "nothing changed" with zero feedback in the UI.
+2. **Each iteration re-fetches the whole attendance table** before the next iteration runs, so a slow round-trip can interleave with the next upsert and a transient failure on any single row is invisible.
 
-Leadership rank: take from the most recent snapshot in the recent window (falls back to prior, falls back to null).
+I can't tell yet whether the actual failure is RLS, a stale `selectedWeekId`, or something else — because the code throws away the error. The plan is to make the failure visible first, then fix the underlying cause if instrumentation reveals one.
 
-The existing `useArchivedSnapshot()` stays for Rankings / Dashboard / Members / At-Risk — unchanged.
+## Plan
 
-## Page: `rank-changes.tsx`
-- Swap `useArchivedSnapshot` for `useArchivedWindowAverages(4)`.
-- Header: "Comparing avg of `<oldest of recent>` – `<newest of recent>` vs `<oldest of prior>` – `<newest of prior>`" with arrow.
-- Placeholder block (replaces current "need 2 archives" message): "Need at least 8 archived weeks to compare rolling 4-week averages. You have X."
-- Row generation: same as today but uses `priorRank` → `recentRank`, only emitting members where the tier actually changes.
-- Counts (Promotions/Demotions) and table stay the same.
+### 1. Make `setStatus` report errors
+**File:** `src/hooks/use-weekly-events.ts`
+- Capture `{ error }` from the upsert.
+- If `error`, `console.error` it and `throw` so callers can react.
+- Same treatment for `setEventActive` and `toggleSvs` while we're there (one-line each).
+
+### 2. Batch the screenshot Apply into a single upsert
+**File:** `src/routes/events.tsx` (`onApplyStatus` / `onApplyRank` handlers)
+
+Replace the per-member `for` loop with a single batched call:
+- Add a new `setStatusBulk(weekId, rows[])` helper in `use-weekly-events.ts` that does one `event_attendance.upsert([...rows])` and one `fetchAttendance()` at the end.
+- `onApplyStatus` builds `rows` with `status: "check"` for every matched member.
+- `onApplyRank` builds `rows` with `status` derived from rank + the rank in `value`.
+
+Benefits: one network round-trip, no interleaving, one obvious error if anything goes wrong.
+
+### 3. Surface errors in the dialog
+**File:** `src/components/ImportScreenshotsDialog.tsx`
+- Wrap the existing `await onApplyStatus / onApplyRank` so that a thrown error shows a real `toast.error(e.message)` instead of the generic "Failed to apply changes" and keeps the review rows on screen so the user can retry.
+
+### 4. Guardrail: refuse to apply with no active week
+- If `selectedWeekId` is empty at apply time, `toast.error("Pick a week before importing")` and bail. (Today it silently no-ops because `setStatus` returns early when `dbId` is missing.)
+
+### 5. Verify
+After the changes, importing one screenshot will either land the attendance rows (visible immediately in the table) or produce a concrete error message naming the failing column / policy / row — which tells us if there is a deeper bug to fix in a follow-up.
 
 ## Out of scope
-- Changing what other pages (Rankings, Dashboard, Members, At-Risk) display — they still show the latest single archived week.
-- Configurable window size in the UI (hardcoded 4; easy to expose later).
-- Backfilling old snapshots that lack event bonus.
-
-## Technical notes
-- All 8 week snapshots fetch in a single `in('week_id', [...])` call, then bucket client-side — keeps it to one round trip instead of 8.
-- Reuses `getRank` from `@/lib/scoring` with the per-window averaged max so a member's average score is graded against an apples-to-apples max.
-- Members missing from both windows are skipped; members present in one window only are skipped (no fair comparison).
+- No schema or RLS changes yet — we'll only touch policies if step 5 surfaces an RLS denial.
+- No changes to the AI parsing pipeline; parsing already works per your report.

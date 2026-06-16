@@ -186,37 +186,81 @@ export function useWeeklyEvents() {
 
   async function setStatus(weekId: string, memberId: string, eventKey: string, status: EventStatus, value?: number | null) {
     const dbId = getWeekDbId(weekId);
-    if (!dbId) return;
+    if (!dbId) throw new Error("No active week selected — pick a week before saving attendance.");
     const row: any = { weekly_event_id: dbId, member_id: memberId, event_type_key: eventKey, status };
     if (value !== undefined) row.value = value;
-    await supabase.from("event_attendance").upsert(
+    const { error } = await supabase.from("event_attendance").upsert(
       row,
       { onConflict: "weekly_event_id,member_id,event_type_key" }
     );
+    if (error) {
+      console.error("[setStatus] upsert failed", error, row);
+      throw new Error(error.message);
+    }
+    await fetchAttendance();
+  }
+
+  async function setStatusBulk(
+    weekId: string,
+    entries: Array<{ memberId: string; eventKey: string; status: EventStatus; value?: number | null }>,
+  ) {
+    const dbId = getWeekDbId(weekId);
+    if (!dbId) throw new Error("No active week selected — pick a week before saving attendance.");
+    if (entries.length === 0) return;
+    const rows = entries.map((e) => {
+      const row: any = {
+        weekly_event_id: dbId,
+        member_id: e.memberId,
+        event_type_key: e.eventKey,
+        status: e.status,
+      };
+      if (e.value !== undefined) row.value = e.value;
+      return row;
+    });
+    const { error } = await supabase.from("event_attendance").upsert(
+      rows,
+      { onConflict: "weekly_event_id,member_id,event_type_key" },
+    );
+    if (error) {
+      console.error("[setStatusBulk] upsert failed", error, { count: rows.length, first: rows[0] });
+      throw new Error(error.message);
+    }
     await fetchAttendance();
   }
 
   async function toggleSvs(weekId: string, active: boolean) {
     const dbId = getWeekDbId(weekId);
-    if (!dbId) return;
-    await supabase.from("weekly_events").update({ svs_active: active }).eq("id", dbId);
+    if (!dbId) throw new Error("No active week selected.");
+    const { error } = await supabase.from("weekly_events").update({ svs_active: active }).eq("id", dbId);
+    if (error) {
+      console.error("[toggleSvs] update failed", error);
+      throw new Error(error.message);
+    }
     await fetchWeeks();
   }
 
   async function setEventActive(weekId: string, eventKey: string, active: boolean) {
     const dbId = getWeekDbId(weekId);
-    if (!dbId) return;
+    if (!dbId) throw new Error("No active week selected.");
     if (eventKey === "svs") {
-      await supabase.from("weekly_events").update({ svs_active: active }).eq("id", dbId);
+      const { error } = await supabase.from("weekly_events").update({ svs_active: active }).eq("id", dbId);
+      if (error) {
+        console.error("[setEventActive svs] update failed", error);
+        throw new Error(error.message);
+      }
       await fetchWeeks();
       return;
     }
-    await supabase
+    const { error } = await supabase
       .from("weekly_event_toggles")
       .upsert(
         { weekly_event_id: dbId, event_type_key: eventKey, is_active: active } as any,
         { onConflict: "weekly_event_id,event_type_key" }
       );
+    if (error) {
+      console.error("[setEventActive] upsert failed", error);
+      throw new Error(error.message);
+    }
     await fetchToggles();
   }
 
@@ -308,6 +352,7 @@ export function useWeeklyEvents() {
     getStatus,
     getValue,
     setStatus,
+    setStatusBulk,
     toggleSvs,
     isEventActive,
     setEventActive,

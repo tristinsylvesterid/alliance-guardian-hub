@@ -49,7 +49,7 @@ function EventsPage() {
     if (bi === -1) return -1;
     return ai - bi;
   });
-  const { activeWeeks, getStatus, getValue, setStatus, isEventActive, setEventActive, startNewWeek, archiveWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
+  const { activeWeeks, getStatus, getValue, setStatus, setStatusBulk, isEventActive, setEventActive, startNewWeek, archiveWeek, deleteWeek, currentWeekExists } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
   const { getEventPoints, eventTypes: scoringEventTypes, avaMetric } = useEventScoring();
   const { metrics: scoringMetrics, maxTotal: BASE_MAX_POINTS } = useScoringConfig();
@@ -122,14 +122,23 @@ function EventsPage() {
               members={rawMembers}
               eventTypes={eventTypes.map((e) => ({ key: e.key, name: e.name, inputType: e.inputType }))}
               onApplyRank={async (eventKey, assignments) => {
-                for (const a of assignments) {
-                  await handleRankChange(a.memberId, eventKey, a.rank);
-                }
+                if (!selectedWeekId) throw new Error("Pick a week before importing.");
+                await setStatusBulk(
+                  selectedWeekId,
+                  assignments.map((a) => ({
+                    memberId: a.memberId,
+                    eventKey,
+                    status: a.rank > 0 ? "check" : "x",
+                    value: a.rank,
+                  })),
+                );
               }}
               onApplyStatus={async (eventKey, memberIds) => {
-                for (const id of memberIds) {
-                  await handleStatusChange(id, eventKey, "check");
-                }
+                if (!selectedWeekId) throw new Error("Pick a week before importing.");
+                await setStatusBulk(
+                  selectedWeekId,
+                  memberIds.map((id) => ({ memberId: id, eventKey, status: "check" })),
+                );
               }}
             />
             <Button

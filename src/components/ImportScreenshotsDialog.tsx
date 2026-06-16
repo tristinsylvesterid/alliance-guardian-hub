@@ -169,7 +169,7 @@ export function ImportScreenshotsDialog({ members, eventTypes, onApplyStatus, on
       handleClose(false);
     } catch (e) {
       console.error(e);
-      toast.error("Failed to apply changes");
+      toast.error(e instanceof Error ? e.message : "Failed to apply changes");
     } finally {
       setApplying(false);
     }
