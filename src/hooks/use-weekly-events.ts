@@ -352,6 +352,7 @@ export function useWeeklyEvents() {
     getStatus,
     getValue,
     setStatus,
+    setStatusBulk,
     toggleSvs,
     isEventActive,
     setEventActive,
