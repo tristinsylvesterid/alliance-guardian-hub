@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useContext, createContext, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { snapshotMemberMetrics } from "@/lib/metrics-history";
 import type { Member } from "@/lib/mock-data";
@@ -58,19 +58,27 @@ function weekEndDate(weekId: string): string {
 }
 
 const MAX_ACTIVE_WEEKS = 4;
-export function useWeeklyEvents() {
+
+function useWeeklyEventsState() {
   const [activeWeeks, setActiveWeeks] = useState<WeeklyEventData[]>([]);
   const [archivedWeeks, setArchivedWeeks] = useState<WeeklyEventData[]>([]);
   const [attendanceCache, setAttendanceCache] = useState<Record<string, Record<string, Record<string, EventStatus>>>>({});
   const [valueCache, setValueCache] = useState<Record<string, Record<string, Record<string, number | null>>>>({});
   const [toggleCache, setToggleCache] = useState<Record<string, Record<string, boolean>>>({});
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [hasSession, setHasSession] = useState<boolean>(false);
 
   const fetchWeeks = useCallback(async () => {
-    const { data: active } = await supabase
+    const { data: active, error: aErr } = await supabase
       .from("weekly_events")
       .select("*")
       .eq("is_archived", false)
       .order("week_id", { ascending: false });
+    if (aErr) {
+      console.error("[useWeeklyEvents] fetch active weekly_events failed", aErr);
+      setLoadError(aErr.message);
+      return;
+    }
     if (active) {
       setActiveWeeks(active.map((r) => ({
         id: r.id,
@@ -81,11 +89,16 @@ export function useWeeklyEvents() {
       })));
     }
 
-    const { data: archived } = await supabase
+    const { data: archived, error: arErr } = await supabase
       .from("weekly_events")
       .select("*")
       .eq("is_archived", true)
       .order("week_id", { ascending: false });
+    if (arErr) {
+      console.error("[useWeeklyEvents] fetch archived weekly_events failed", arErr);
+      setLoadError(arErr.message);
+      return;
+    }
     if (archived) {
       setArchivedWeeks(archived.map((r) => ({
         id: r.id,
@@ -95,10 +108,16 @@ export function useWeeklyEvents() {
         isArchived: r.is_archived,
       })));
     }
+    setLoadError(null);
   }, []);
 
   const fetchAttendance = useCallback(async () => {
-    const { data } = await supabase.from("event_attendance").select("*");
+    const { data, error } = await supabase.from("event_attendance").select("*");
+    if (error) {
+      console.error("[useWeeklyEvents] fetch event_attendance failed", error);
+      setLoadError(error.message);
+      return;
+    }
     if (data) {
       const cache: Record<string, Record<string, Record<string, EventStatus>>> = {};
       const valCache: Record<string, Record<string, Record<string, number | null>>> = {};
@@ -116,7 +135,11 @@ export function useWeeklyEvents() {
   }, []);
 
   const fetchToggles = useCallback(async () => {
-    const { data } = await supabase.from("weekly_event_toggles").select("*");
+    const { data, error } = await supabase.from("weekly_event_toggles").select("*");
+    if (error) {
+      console.error("[useWeeklyEvents] fetch weekly_event_toggles failed", error);
+      return;
+    }
     if (data) {
       const cache: Record<string, Record<string, boolean>> = {};
       for (const row of data as any[]) {
@@ -127,11 +150,51 @@ export function useWeeklyEvents() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchWeeks();
-    fetchAttendance();
-    fetchToggles();
+  const refreshAll = useCallback(async () => {
+    await Promise.all([fetchWeeks(), fetchAttendance(), fetchToggles()]);
   }, [fetchWeeks, fetchAttendance, fetchToggles]);
+
+  // Session-aware load: only fetch when a Supabase session exists, and refetch
+  // when the user signs in. RLS on these tables is TO authenticated, so a
+  // pre-session fetch returns [] and would silently blank the UI.
+  useEffect(() => {
+    let cancelled = false;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      if (session) {
+        setHasSession(true);
+        void refreshAll();
+      } else {
+        setHasSession(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+        if (session && !hasSession) {
+          setHasSession(true);
+          void refreshAll();
+        } else if (session) {
+          // already had session; nothing to do
+        }
+      } else if (event === "SIGNED_OUT") {
+        setHasSession(false);
+        setActiveWeeks([]);
+        setArchivedWeeks([]);
+        setAttendanceCache({});
+        setValueCache({});
+        setToggleCache({});
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshAll]);
 
 
   function getWeekDbId(weekId: string): string | undefined {
@@ -184,6 +247,32 @@ export function useWeeklyEvents() {
     return false;
   }
 
+  function applyAttendanceOptimistic(
+    weeklyEventDbId: string,
+    entries: Array<{ memberId: string; eventKey: string; status: EventStatus; value?: number | null }>,
+  ) {
+    setAttendanceCache((prev) => {
+      const next = { ...prev };
+      const wk = { ...(next[weeklyEventDbId] ?? {}) };
+      for (const e of entries) {
+        wk[e.memberId] = { ...(wk[e.memberId] ?? {}), [e.eventKey]: e.status };
+      }
+      next[weeklyEventDbId] = wk;
+      return next;
+    });
+    setValueCache((prev) => {
+      const next = { ...prev };
+      const wk = { ...(next[weeklyEventDbId] ?? {}) };
+      for (const e of entries) {
+        if (e.value !== undefined) {
+          wk[e.memberId] = { ...(wk[e.memberId] ?? {}), [e.eventKey]: e.value };
+        }
+      }
+      next[weeklyEventDbId] = wk;
+      return next;
+    });
+  }
+
   async function setStatus(weekId: string, memberId: string, eventKey: string, status: EventStatus, value?: number | null) {
     const dbId = getWeekDbId(weekId);
     if (!dbId) throw new Error("No active week selected — pick a week before saving attendance.");
@@ -197,6 +286,7 @@ export function useWeeklyEvents() {
       console.error("[setStatus] upsert failed", error, row);
       throw new Error(error.message);
     }
+    applyAttendanceOptimistic(dbId, [{ memberId, eventKey, status, value }]);
     await fetchAttendance();
   }
 
@@ -225,6 +315,7 @@ export function useWeeklyEvents() {
       console.error("[setStatusBulk] upsert failed", error, { count: rows.length, first: rows[0] });
       throw new Error(error.message);
     }
+    applyAttendanceOptimistic(dbId, entries);
     await fetchAttendance();
   }
 
@@ -349,6 +440,9 @@ export function useWeeklyEvents() {
     archivedWeeks,
     currentWeek: activeWeeks[0] ?? null,
     currentWeekExists,
+    loadError,
+    hasSession,
+    refresh: refreshAll,
     getStatus,
     getValue,
     setStatus,
@@ -361,4 +455,20 @@ export function useWeeklyEvents() {
     startNewWeek,
     deleteWeek,
   };
+}
+
+type WeeklyEventsValue = ReturnType<typeof useWeeklyEventsState>;
+const WeeklyEventsContext = createContext<WeeklyEventsValue | null>(null);
+
+export function WeeklyEventsProvider({ children }: { children: ReactNode }) {
+  const value = useWeeklyEventsState();
+  return <WeeklyEventsContext.Provider value={value}>{children}</WeeklyEventsContext.Provider>;
+}
+
+export function useWeeklyEvents(): WeeklyEventsValue {
+  const ctx = useContext(WeeklyEventsContext);
+  if (!ctx) {
+    throw new Error("useWeeklyEvents must be used within a <WeeklyEventsProvider>");
+  }
+  return ctx;
 }
