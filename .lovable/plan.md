@@ -1,33 +1,36 @@
 ## Goal
-Make Glory War screenshot imports visibly update the current Events page immediately and reliably.
 
-## What I found
-- The backend already has current-week Glory War rows: `Jun 15 – Jun 21, 2026` has 61 `glory_war` attendance entries.
-- The Events page can read authenticated event data, but the current hook fetches all `event_attendance` rows in one unfiltered request.
-- There are 1105 attendance rows total. The Data API response is capped at 1000 rows unless pagination/range is used, so some rows can be missing from the UI even after Apply succeeds.
-- There is also a key mismatch risk: old rows use keys like `canyonClash`, while active event types now use normalized keys like `glory_war`. Glory War is correct in the database, but the code should make refresh behavior explicit and visible.
+Replace the current week's "Zero weekly participation" flag on the Members at Risk page with a **"Low overall participation"** flag based on a rolling 4-week average of event attendance.
 
-## Implementation plan
-1. **Fix attendance loading**
-   - Change `useWeeklyEvents` to fetch attendance by the currently loaded active/archived week IDs instead of `select('*')` for every attendance row.
-   - This avoids the 1000-row cap hiding current Glory War data.
+## Behavior
 
-2. **Make Apply refresh the exact event**
-   - After `setStatusBulk`, keep the optimistic UI update and then refetch attendance for the selected week/event.
-   - Do not let a partial/full-table refetch overwrite the optimistic Glory War rows with missing data.
+- For each non-officer member, look at the **last 4 weeks** of attendance data (most recent first), using whichever of those weeks exist — current active week + most recent archived weeks, capped at 4.
+- For each included week, count:
+  - `opportunities` = number of attendance-tracked events that were active that week (same definition as today's `activeEventCount`)
+  - `attended` = number of those events the member was marked `check` for
+- Sum across the included weeks and compute `participationRate = attended / opportunities` (skip the flag entirely if `opportunities === 0` across all 4 weeks).
+- Flag thresholds:
+  - `< 25%` → **high** severity, label "Low overall participation", detail e.g. `3 / 16 (19%) last 4 wks`
+  - `25% – 49%` → **medium** severity, same label, same detail format
+  - `≥ 50%` → no flag
+- Remove the existing `zero_participation` flag (the new one supersedes it; a member with 0/16 will land in the high tier).
+- Keep all other flags (Alliance Recognition, AvA, Missed SvS, Low score, Low troops, Low HQ) unchanged.
 
-3. **Expose load/apply problems clearly**
-   - Surface `loadError` on the Events page with an inline alert so silent data loading failures are visible.
-   - Keep the parsed review rows open if Apply fails.
+## Technical Notes
 
-4. **Add a small debug-safe confirmation**
-   - After Apply, show a success message that includes the event name, matched count, and selected week label.
-   - This confirms the import went to the week the user is viewing.
+- `src/lib/at-risk.ts`
+  - Remove `zero_participation` from `RISK_INDICATORS` and from `evaluateMemberRisk`.
+  - Add `low_overall_participation` to `RISK_INDICATORS`.
+  - Extend `WeekContext` with `rollingOpportunities: number` and `rollingAttended: number` (replacing the single-week `activeEventCount` / `attendedEventCount` usage for the participation flag — those fields can stay for any future use but are no longer read for participation).
+  - Add the new flag logic with the thresholds above.
+- `src/routes/at-risk.tsx`
+  - Build the rolling window: `[activeWeeks[0], ...archivedWeeks].slice(0, 4)` (filter out undefined).
+  - For each member, iterate the window and sum opportunities/attended using existing `isEventActive(weekId, key)` and `getStatus(weekId, memberId, key)` from `useWeeklyEvents`.
+  - Pass the totals into `evaluateMemberRisk` via the extended context.
+  - Keep the per-row "attended / totalOpps" display tied to the current week as it is today (table column unchanged), since that summary is about this week, not the rolling window — the rolling detail lives inside the flag chip.
 
-5. **Verify the actual Glory War case**
-   - Use the live preview to confirm `Jun 15 – Jun 21, 2026` displays Glory War attendance from the existing 61 backend rows.
-   - Confirm applying a Glory War import updates the summary/tables without requiring a page reload.
+## Out of Scope
 
-## Out of scope
-- No changes to the AI screenshot parsing prompts unless the data fails to parse.
-- No schema or permission changes unless a database read/write error appears during verification.
+- No changes to SvS / AvA / score / troops / HQ flags.
+- No changes to how weeks are archived or how attendance is stored.
+- No new DB queries — all data is already loaded by `useWeeklyEvents`.

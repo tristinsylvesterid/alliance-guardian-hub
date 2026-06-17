@@ -19,6 +19,12 @@ export interface WeekContext {
   pollCount: number;
   /** Number of polls the member responded to */
   pollResponseCount: number;
+  /** Total attendance opportunities across the rolling 4-week window */
+  rollingOpportunities: number;
+  /** Attended count across the rolling 4-week window */
+  rollingAttended: number;
+  /** Number of weeks included in the rolling window (1-4) */
+  rollingWeekCount: number;
   /** Whether SvS is toggled on this week */
   svsActive: boolean;
   /** Whether the member was marked attending SvS this week */
