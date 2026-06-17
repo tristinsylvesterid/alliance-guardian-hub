@@ -75,7 +75,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   return (
     <AuthProvider>
-      <AuthGate />
+      <WeeklyEventsProvider>
+        <AuthGate />
+        <Toaster />
+      </WeeklyEventsProvider>
     </AuthProvider>
   );
 }
