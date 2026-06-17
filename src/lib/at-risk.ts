@@ -19,6 +19,12 @@ export interface WeekContext {
   pollCount: number;
   /** Number of polls the member responded to */
   pollResponseCount: number;
+  /** Total attendance opportunities across the rolling 4-week window */
+  rollingOpportunities: number;
+  /** Attended count across the rolling 4-week window */
+  rollingAttended: number;
+  /** Number of weeks included in the rolling window (1-4) */
+  rollingWeekCount: number;
   /** Whether SvS is toggled on this week */
   svsActive: boolean;
   /** Whether the member was marked attending SvS this week */
@@ -34,7 +40,7 @@ export interface WeekContext {
 export const RISK_INDICATORS = [
   { key: "alliance_recognition", label: "Alliance Recognition <100%" },
   { key: "ava_weak", label: "AvA rank ≥50" },
-  { key: "zero_participation", label: "Zero weekly participation" },
+  { key: "low_overall_participation", label: "Low overall participation (4-wk avg)" },
   { key: "missed_svs", label: "Missed SvS" },
   { key: "low_score", label: "Overall score in R1 range" },
   { key: "low_troops", label: "T8 troops or lower" },
@@ -67,16 +73,18 @@ export function evaluateMemberRisk(member: Member, ctx: WeekContext, metricDefs?
     }
   }
 
-  // Zero weekly participation: nothing attended, no polls answered, no AvA rank
-  const totalOpportunities = ctx.activeEventCount + ctx.pollCount;
-  const totalActions = ctx.attendedEventCount + ctx.pollResponseCount;
-  if (totalOpportunities > 0 && totalActions === 0) {
-    flags.push({
-      key: "zero_participation",
-      label: "Zero weekly participation",
-      detail: `0 / ${totalOpportunities}`,
-      severity: "high",
-    });
+  // Low overall participation across the rolling 4-week window
+  if (ctx.rollingOpportunities > 0) {
+    const rate = ctx.rollingAttended / ctx.rollingOpportunities;
+    if (rate < 0.5) {
+      const pct = Math.round(rate * 100);
+      flags.push({
+        key: "low_overall_participation",
+        label: "Low overall participation",
+        detail: `${ctx.rollingAttended} / ${ctx.rollingOpportunities} (${pct}%) last ${ctx.rollingWeekCount} wk${ctx.rollingWeekCount === 1 ? "" : "s"}`,
+        severity: rate < 0.25 ? "high" : "medium",
+      });
+    }
   }
 
   // Only flag missed SvS once attendance has started being recorded for the week

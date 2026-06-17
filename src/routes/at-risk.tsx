@@ -33,13 +33,18 @@ export const Route = createFileRoute("/at-risk")({
 function AtRiskPage() {
   const { members } = useMembers();
   const { eventTypes } = useEventTypes();
-  const { activeWeeks, getStatus, getValue, isEventActive } = useWeeklyEvents();
+  const { activeWeeks, archivedWeeks, getStatus, getValue, isEventActive } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
   const [filter, setFilter] = useState<string | null>(null);
   const { latestByMember, latestMax: displayMax, hasArchive } = useArchivedSnapshot();
   const { metrics: liveMetrics, maxTotal: BASE_MAX_POINTS } = useScoringConfig();
 
   const currentWeek = activeWeeks[0];
+
+  const rollingWindow = useMemo(() => {
+    const weeks = [currentWeek, ...archivedWeeks].filter(Boolean).slice(0, 4);
+    return weeks as NonNullable<typeof currentWeek>[];
+  }, [currentWeek, archivedWeeks]);
 
   const flaggedMembers = useMemo(() => {
     if (!currentWeek) return [];
@@ -52,6 +57,12 @@ function AtRiskPage() {
       (mm) => getStatus(currentWeek.weekId, mm.id, "svs") === "check",
     );
 
+    // Precompute per-week active attendance events for the rolling window
+    const windowEvents = rollingWindow.map((w) => ({
+      weekId: w.weekId,
+      events: eventTypes.filter((e) => isEventActive(w.weekId, e.key)),
+    }));
+
     return members
       .filter((m) => m.leadershipRank !== "R4" && m.leadershipRank !== "R5")
       .map((m) => {
@@ -62,11 +73,23 @@ function AtRiskPage() {
         const svsAttended = getStatus(currentWeek.weekId, m.id, "svs") === "check";
         const avaRank = getValue(currentWeek.weekId, m.id, "ava");
 
+        let rollingOpportunities = 0;
+        let rollingAttended = 0;
+        for (const w of windowEvents) {
+          for (const ev of w.events) {
+            rollingOpportunities++;
+            if (getStatus(w.weekId, m.id, ev.key) === "check") rollingAttended++;
+          }
+        }
+
         const flags = evaluateMemberRisk(m, {
           activeEventCount: activeEvents.length,
           attendedEventCount: attended,
           pollCount: 0,
           pollResponseCount: 0,
+          rollingOpportunities,
+          rollingAttended,
+          rollingWeekCount: rollingWindow.length,
           svsActive,
           svsAttended,
           svsAttendanceRecorded,
@@ -87,7 +110,7 @@ function AtRiskPage() {
         if (b.flags.length !== a.flags.length) return b.flags.length - a.flags.length;
         return a.name.localeCompare(b.name);
       });
-  }, [members, eventTypes, currentWeek, isEventActive, getStatus, getValue, thresholds, latestByMember, liveMetrics, BASE_MAX_POINTS]);
+  }, [members, eventTypes, currentWeek, rollingWindow, isEventActive, getStatus, getValue, thresholds, latestByMember, liveMetrics, BASE_MAX_POINTS]);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
