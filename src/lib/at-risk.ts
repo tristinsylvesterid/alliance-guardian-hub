@@ -73,16 +73,18 @@ export function evaluateMemberRisk(member: Member, ctx: WeekContext, metricDefs?
     }
   }
 
-  // Zero weekly participation: nothing attended, no polls answered, no AvA rank
-  const totalOpportunities = ctx.activeEventCount + ctx.pollCount;
-  const totalActions = ctx.attendedEventCount + ctx.pollResponseCount;
-  if (totalOpportunities > 0 && totalActions === 0) {
-    flags.push({
-      key: "zero_participation",
-      label: "Zero weekly participation",
-      detail: `0 / ${totalOpportunities}`,
-      severity: "high",
-    });
+  // Low overall participation across the rolling 4-week window
+  if (ctx.rollingOpportunities > 0) {
+    const rate = ctx.rollingAttended / ctx.rollingOpportunities;
+    if (rate < 0.5) {
+      const pct = Math.round(rate * 100);
+      flags.push({
+        key: "low_overall_participation",
+        label: "Low overall participation",
+        detail: `${ctx.rollingAttended} / ${ctx.rollingOpportunities} (${pct}%) last ${ctx.rollingWeekCount} wk${ctx.rollingWeekCount === 1 ? "" : "s"}`,
+        severity: rate < 0.25 ? "high" : "medium",
+      });
+    }
   }
 
   // Only flag missed SvS once attendance has started being recorded for the week
