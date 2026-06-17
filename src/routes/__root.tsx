@@ -1,6 +1,8 @@
 import { Outlet, Link, useNavigate, useLocation, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { WeeklyEventsProvider } from "@/hooks/use-weekly-events";
+import { Toaster } from "@/components/ui/sonner";
 
 import appCss from "../styles.css?url";
 
