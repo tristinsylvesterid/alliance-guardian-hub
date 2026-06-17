@@ -110,7 +110,7 @@ function AtRiskPage() {
         if (b.flags.length !== a.flags.length) return b.flags.length - a.flags.length;
         return a.name.localeCompare(b.name);
       });
-  }, [members, eventTypes, currentWeek, isEventActive, getStatus, getValue, thresholds, latestByMember, liveMetrics, BASE_MAX_POINTS]);
+  }, [members, eventTypes, currentWeek, rollingWindow, isEventActive, getStatus, getValue, thresholds, latestByMember, liveMetrics, BASE_MAX_POINTS]);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
