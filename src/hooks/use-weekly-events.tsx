@@ -112,26 +112,41 @@ function useWeeklyEventsState() {
   }, []);
 
   const fetchAttendance = useCallback(async () => {
-    const { data, error } = await supabase.from("event_attendance").select("*");
-    if (error) {
-      console.error("[useWeeklyEvents] fetch event_attendance failed", error);
-      setLoadError(error.message);
-      return;
-    }
-    if (data) {
-      const cache: Record<string, Record<string, Record<string, EventStatus>>> = {};
-      const valCache: Record<string, Record<string, Record<string, number | null>>> = {};
-      for (const row of data) {
-        if (!cache[row.weekly_event_id]) cache[row.weekly_event_id] = {};
-        if (!cache[row.weekly_event_id][row.member_id]) cache[row.weekly_event_id][row.member_id] = {};
-        cache[row.weekly_event_id][row.member_id][row.event_type_key] = row.status as EventStatus;
-        if (!valCache[row.weekly_event_id]) valCache[row.weekly_event_id] = {};
-        if (!valCache[row.weekly_event_id][row.member_id]) valCache[row.weekly_event_id][row.member_id] = {};
-        valCache[row.weekly_event_id][row.member_id][row.event_type_key] = (row as any).value ?? null;
+    // PostgREST caps responses (default 1000). Paginate via .range() so that
+    // big weeks (e.g. AvA top-100 + per-member statuses) are never silently
+    // truncated — that was hiding current-week imports like Glory War.
+    const PAGE = 1000;
+    const all: any[] = [];
+    let from = 0;
+    // safety cap to avoid runaway loop
+    for (let i = 0; i < 50; i++) {
+      const { data, error } = await supabase
+        .from("event_attendance")
+        .select("*")
+        .order("weekly_event_id", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) {
+        console.error("[useWeeklyEvents] fetch event_attendance failed", error);
+        setLoadError(error.message);
+        return;
       }
-      setAttendanceCache(cache);
-      setValueCache(valCache);
+      if (!data || data.length === 0) break;
+      all.push(...data);
+      if (data.length < PAGE) break;
+      from += PAGE;
     }
+    const cache: Record<string, Record<string, Record<string, EventStatus>>> = {};
+    const valCache: Record<string, Record<string, Record<string, number | null>>> = {};
+    for (const row of all) {
+      if (!cache[row.weekly_event_id]) cache[row.weekly_event_id] = {};
+      if (!cache[row.weekly_event_id][row.member_id]) cache[row.weekly_event_id][row.member_id] = {};
+      cache[row.weekly_event_id][row.member_id][row.event_type_key] = row.status as EventStatus;
+      if (!valCache[row.weekly_event_id]) valCache[row.weekly_event_id] = {};
+      if (!valCache[row.weekly_event_id][row.member_id]) valCache[row.weekly_event_id][row.member_id] = {};
+      valCache[row.weekly_event_id][row.member_id][row.event_type_key] = (row as any).value ?? null;
+    }
+    setAttendanceCache(cache);
+    setValueCache(valCache);
   }, []);
 
   const fetchToggles = useCallback(async () => {
