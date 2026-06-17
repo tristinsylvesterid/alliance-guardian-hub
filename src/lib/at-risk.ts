@@ -40,7 +40,7 @@ export interface WeekContext {
 export const RISK_INDICATORS = [
   { key: "alliance_recognition", label: "Alliance Recognition <100%" },
   { key: "ava_weak", label: "AvA rank ≥50" },
-  { key: "zero_participation", label: "Zero weekly participation" },
+  { key: "low_overall_participation", label: "Low overall participation (4-wk avg)" },
   { key: "missed_svs", label: "Missed SvS" },
   { key: "low_score", label: "Overall score in R1 range" },
   { key: "low_troops", label: "T8 troops or lower" },
