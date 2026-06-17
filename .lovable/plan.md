@@ -1,59 +1,33 @@
-## Findings
+## Goal
+Make Glory War screenshot imports visibly update the current Events page immediately and reliably.
 
-- Glory War data for the current week is already saved in the backend: `Jun 15 – Jun 21, 2026` has **61 `glory_war` attendance rows**.
-- The preview is reading `event_attendance` with an unauthenticated token and receiving `[]`, not an error. That explains why Apply can appear successful but the Events page still looks unchanged.
-- The current fetch code treats an empty backend response as real empty attendance, so it silently clears the UI instead of warning that attendance data was not available.
+## What I found
+- The backend already has current-week Glory War rows: `Jun 15 – Jun 21, 2026` has 61 `glory_war` attendance entries.
+- The Events page can read authenticated event data, but the current hook fetches all `event_attendance` rows in one unfiltered request.
+- There are 1105 attendance rows total. The Data API response is capped at 1000 rows unless pagination/range is used, so some rows can be missing from the UI even after Apply succeeds.
+- There is also a key mismatch risk: old rows use keys like `canyonClash`, while active event types now use normalized keys like `glory_war`. Glory War is correct in the database, but the code should make refresh behavior explicit and visible.
 
-## Plan
+## Implementation plan
+1. **Fix attendance loading**
+   - Change `useWeeklyEvents` to fetch attendance by the currently loaded active/archived week IDs instead of `select('*')` for every attendance row.
+   - This avoids the 1000-row cap hiding current Glory War data.
 
-### 1. Fix authenticated attendance reads
+2. **Make Apply refresh the exact event**
+   - After `setStatusBulk`, keep the optimistic UI update and then refetch attendance for the selected week/event.
+   - Do not let a partial/full-table refetch overwrite the optimistic Glory War rows with missing data.
 
-Update `src/hooks/use-weekly-events.ts` so event data is only fetched after a valid signed-in session is available.
+3. **Expose load/apply problems clearly**
+   - Surface `loadError` on the Events page with an inline alert so silent data loading failures are visible.
+   - Keep the parsed review rows open if Apply fails.
 
-- Before `fetchWeeks`, `fetchAttendance`, and `fetchToggles`, confirm the user session exists.
-- If no session exists, do not overwrite the current caches with empty data.
-- Listen for sign-in/session restoration and refetch event data once the session is ready.
+4. **Add a small debug-safe confirmation**
+   - After Apply, show a success message that includes the event name, matched count, and selected week label.
+   - This confirms the import went to the week the user is viewing.
 
-### 2. Surface backend read/write problems instead of failing silently
+5. **Verify the actual Glory War case**
+   - Use the live preview to confirm `Jun 15 – Jun 21, 2026` displays Glory War attendance from the existing 61 backend rows.
+   - Confirm applying a Glory War import updates the summary/tables without requiring a page reload.
 
-Add proper error handling in the same hook:
-
-- If `weekly_events`, `event_attendance`, or `weekly_event_toggles` fetches fail, log the exact backend error and expose it to the Events page.
-- Show a clear toast/banner on `/events`, e.g. “Attendance data could not be loaded. Please sign in again or refresh.”
-- Keep the imported review rows visible if Apply cannot confirm the update.
-
-### 3. Make Apply visibly refresh Glory War immediately
-
-After screenshot Apply succeeds:
-
-- Optimistically update the local attendance cache for the selected week/event/member rows.
-- Then refetch attendance from the backend.
-- Confirm the current week and event key are included in the success message, e.g. “Updated Glory War for Jun 15 – Jun 21, 2026.”
-
-### 4. Remove duplicate weekly-event state
-
-Right now `useWeeklyEvents()` is called in multiple places, which creates separate caches. I’ll lift it into a shared provider so every route/helper sees the same event attendance state.
-
-- Add a shared weekly-events provider.
-- Wrap authenticated app content with it.
-- Keep the existing `useWeeklyEvents()` API the same so route code stays simple.
-
-### 5. Verify backend permissions for event tables
-
-Confirm the event-related backend tables have explicit app access permissions:
-
-- `event_attendance`
-- `weekly_events`
-- `weekly_event_toggles`
-- `event_types`
-
-If any are missing, add a small migration granting signed-in officers/admins access while keeping the existing row-level rules intact.
-
-### 6. Validate the actual Glory War case
-
-Use the live preview to confirm:
-
-- Current week is `Jun 15 – Jun 21, 2026`.
-- Glory War shows the saved attendance count without needing a refresh.
-- Importing another Glory War screenshot updates the roster immediately.
-- If the user is not signed in, the page shows a clear message instead of silently showing empty attendance.
+## Out of scope
+- No changes to the AI screenshot parsing prompts unless the data fails to parse.
+- No schema or permission changes unless a database read/write error appears during verification.
