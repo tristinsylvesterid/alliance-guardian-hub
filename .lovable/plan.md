@@ -1,20 +1,20 @@
 ## Goal
 
-New events should be toggleable on/off by default, like Glory War and (now) Capital.
+Add a fourth tier to the Members "Last Updated" color scheme: fresh updates (within the last 14 days) show in a high-contrast green.
 
 ## Changes
 
-1. **`src/hooks/use-event-types.ts`** — flip the `addEventType` default and the insert in the seed-defaults path so newly created events are optional:
-   - line 26 (seed insert): `is_optional: false` → `is_optional: true`
-   - line 69: `addEventType(name: string, isOptional = false)` → `isOptional = true`
+1. **`src/styles.css`** — add a new token alongside the existing warn tokens:
+   - `--warn-fresh: oklch(0.82 0.17 150)` (bright mint/lime green, lightness matched to the amber/red so it stays readable on the dark card)
+   - map it in `@theme inline` as `--color-warn-fresh: var(--warn-fresh)` so `text-warn-fresh` works as a Tailwind utility.
 
-2. **Schema default** — change the `event_types.is_optional` column default to `true` via migration, so any insert that omits the column also gets a toggle:
-   ```sql
-   ALTER TABLE public.event_types ALTER COLUMN is_optional SET DEFAULT true;
-   ```
-   Existing rows are unchanged — only Capital and Glory War remain optional. Core events (SvS, AvA, etc.) keep their current `is_optional = false`.
+2. **`src/routes/members.tsx`** — extend the className picker in the Last Updated cell:
+   - `daysSince >= 30` → `text-warn-stale font-semibold` (red, unchanged)
+   - `daysSince >= 15` → `text-warn-aging font-medium` (amber, unchanged)
+   - `daysSince <= 14` → `text-warn-fresh font-medium` (new green tier)
+   - null `updatedAt` still renders the em dash.
 
 ## Out of Scope
 
-- No change to existing event rows' optional status.
-- No UI changes — the toggle already renders automatically when `is_optional = true`.
+- No threshold changes to the existing amber/red tiers.
+- No new columns, tooltips, filters, or sort behavior.
