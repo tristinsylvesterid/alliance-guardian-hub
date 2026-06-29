@@ -56,8 +56,33 @@ export function useArchivedMembers() {
     await fetchArchived();
   }
 
+  async function unarchiveMember(entry: ArchivedMember) {
+    const metricsJson = entry.metrics as unknown as Json;
+    const insertPayload: {
+      name: string;
+      leadership_rank: string | null;
+      metrics: Json;
+      location_x: number;
+      location_y: number;
+      id?: string;
+    } = {
+      name: entry.name,
+      leadership_rank: entry.leadershipRank === "R4" || entry.leadershipRank === "R5" ? entry.leadershipRank : null,
+      metrics: metricsJson,
+      location_x: typeof entry.metrics.locationX === "number" ? entry.metrics.locationX : 0,
+      location_y: typeof entry.metrics.locationY === "number" ? entry.metrics.locationY : 0,
+    };
+    if (entry.originalMemberId) insertPayload.id = entry.originalMemberId;
+    const { error } = await supabase.from("members").insert(insertPayload);
+    if (error) throw error;
+    await supabase.from("archived_members").delete().eq("id", entry.id);
+    await fetchArchived();
+  }
+
   return {
     archivedMembers,
     archiveMember,
+    unarchiveMember,
+    refetch: fetchArchived,
   };
 }
