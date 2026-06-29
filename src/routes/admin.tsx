@@ -7,8 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, Trash2, Shield, ShieldCheck } from "lucide-react";
+import { UserPlus, Shield, ShieldCheck, KeyRound, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({
@@ -30,7 +40,7 @@ interface OfficerUser {
 }
 
 function AdminPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user: currentUser } = useAuth();
   const [users, setUsers] = useState<OfficerUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -40,8 +50,15 @@ function AdminPage() {
   const [newRole, setNewRole] = useState<"admin" | "officer">("officer");
   const [creating, setCreating] = useState(false);
 
+  const [resetTarget, setResetTarget] = useState<OfficerUser | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetConfirm, setResetConfirm] = useState("");
+  const [resetting, setResetting] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<OfficerUser | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const fetchUsers = useCallback(async () => {
-    // Get all profiles and their roles
     const { data: profiles } = await supabase
       .from("profiles")
       .select("user_id, display_name, created_at");
@@ -61,7 +78,7 @@ function AdminPage() {
 
     const officerList: OfficerUser[] = profiles.map((p) => ({
       id: p.user_id,
-      email: "", // we'll show display_name primarily
+      email: "",
       displayName: p.display_name || "Unknown",
       roles: roleMap.get(p.user_id) || [],
       createdAt: p.created_at,
@@ -97,7 +114,6 @@ function AdminPage() {
 
     setCreating(true);
 
-    // Use edge function to create user (admin operation)
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-officer`,
@@ -131,6 +147,67 @@ function AdminPage() {
     setCreating(false);
   };
 
+  const handleResetPassword = async () => {
+    if (!resetTarget) return;
+    if (resetPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+    if (resetPassword !== resetConfirm) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    setResetting(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reset-user-password`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ userId: resetTarget.id, newPassword: resetPassword }),
+      }
+    );
+    if (res.ok) {
+      toast.success(`Password reset for ${resetTarget.displayName}`);
+      setResetTarget(null);
+      setResetPassword("");
+      setResetConfirm("");
+    } else {
+      const err = await res.json();
+      toast.error(err.error || "Failed to reset password");
+    }
+    setResetting(false);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ userId: deleteTarget.id }),
+      }
+    );
+    if (res.ok) {
+      toast.success(`Deleted ${deleteTarget.displayName}`);
+      setDeleteTarget(null);
+      await fetchUsers();
+    } else {
+      const err = await res.json();
+      toast.error(err.error || "Failed to delete account");
+    }
+    setDeleting(false);
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -155,30 +232,62 @@ function AdminPage() {
                   <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Name</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Role</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Created</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} className="border-b border-border/50 last:border-0">
-                    <td className="px-4 py-3 text-sm font-medium text-foreground">{u.displayName}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        {u.roles.map((r) => (
-                          <Badge key={r} variant={r === "admin" ? "default" : "secondary"} className="gap-1 text-xs">
-                            {r === "admin" ? <ShieldCheck className="h-3 w-3" /> : <Shield className="h-3 w-3" />}
-                            {r}
-                          </Badge>
-                        ))}
-                        {u.roles.length === 0 && (
-                          <span className="text-xs text-muted-foreground">No role</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {new Date(u.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
+                {users.map((u) => {
+                  const isSelf = currentUser?.id === u.id;
+                  return (
+                    <tr key={u.id} className="border-b border-border/50 last:border-0">
+                      <td className="px-4 py-3 text-sm font-medium text-foreground">{u.displayName}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1">
+                          {u.roles.map((r) => (
+                            <Badge key={r} variant={r === "admin" ? "default" : "secondary"} className="gap-1 text-xs">
+                              {r === "admin" ? <ShieldCheck className="h-3 w-3" /> : <Shield className="h-3 w-3" />}
+                              {r}
+                            </Badge>
+                          ))}
+                          {u.roles.length === 0 && (
+                            <span className="text-xs text-muted-foreground">No role</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        {new Date(u.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => {
+                              setResetTarget(u);
+                              setResetPassword("");
+                              setResetConfirm("");
+                            }}
+                          >
+                            <KeyRound className="h-3.5 w-3.5" />
+                            Reset Password
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="gap-1"
+                            disabled={isSelf}
+                            title={isSelf ? "You cannot delete your own account" : undefined}
+                            onClick={() => setDeleteTarget(u)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -238,6 +347,79 @@ function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={!!resetTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setResetTarget(null);
+            setResetPassword("");
+            setResetConfirm("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password{resetTarget ? ` · ${resetTarget.displayName}` : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">New Password</label>
+              <Input
+                type="password"
+                placeholder="Min 8 characters"
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Confirm Password</label>
+              <Input
+                type="password"
+                placeholder="Re-enter password"
+                value={resetConfirm}
+                onChange={(e) => setResetConfirm(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetTarget(null)}>Cancel</Button>
+            <Button onClick={handleResetPassword} disabled={resetting}>
+              {resetting ? "Setting…" : "Set Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes <span className="font-medium text-foreground">{deleteTarget?.displayName}</span>'s
+              account, profile, and role assignments. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteUser();
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting…" : "Delete Account"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
