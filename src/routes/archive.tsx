@@ -1,13 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { RankBadge } from "@/components/RankBadge";
 import { calculateTotalScore, getRank } from "@/lib/scoring";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
-import { Archive } from "lucide-react";
+import { useMembers } from "@/hooks/use-members";
+import { Archive, ArchiveRestore } from "lucide-react";
+import { toast } from "sonner";
+import type { ArchivedMember } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/archive")({
   component: ArchivePage,
@@ -20,9 +35,34 @@ export const Route = createFileRoute("/archive")({
 });
 
 function ArchivePage() {
-  const { archivedMembers } = useArchivedMembers();
+  const { archivedMembers, unarchiveMember } = useArchivedMembers();
   const { thresholds } = useRankThresholds();
   const { metrics: liveMetrics, maxTotal } = useScoringConfig();
+  const { members, refetch } = useMembers();
+  const [restoreTarget, setRestoreTarget] = useState<ArchivedMember | null>(null);
+  const [restoring, setRestoring] = useState(false);
+
+  async function handleRestore() {
+    if (!restoreTarget) return;
+    setRestoring(true);
+    try {
+      const conflict = restoreTarget.originalMemberId
+        ? members.some((m) => m.id === restoreTarget.originalMemberId)
+        : false;
+      if (conflict) {
+        toast.error("A member with the same ID already exists in the active roster.");
+        return;
+      }
+      await unarchiveMember(restoreTarget);
+      await refetch();
+      toast.success(`${restoreTarget.name} restored to active roster`);
+      setRestoreTarget(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to restore member");
+    } finally {
+      setRestoring(false);
+    }
+  }
 
   return (
     <AppLayout>
@@ -52,6 +92,7 @@ function ArchivePage() {
                       <TableHead className="text-gold-muted font-heading text-center">Last Score</TableHead>
                       <TableHead className="text-gold-muted font-heading">Reason</TableHead>
                       <TableHead className="text-gold-muted font-heading">Archived On</TableHead>
+                      <TableHead className="text-gold-muted font-heading text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -67,6 +108,17 @@ function ArchivePage() {
                           <TableCell className="text-muted-foreground text-sm">
                             {new Date(entry.archivedAt).toLocaleDateString()}
                           </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5"
+                              onClick={() => setRestoreTarget(entry)}
+                            >
+                              <ArchiveRestore className="h-3.5 w-3.5" />
+                              Unarchive
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -77,6 +129,23 @@ function ArchivePage() {
           </Card>
         )}
       </div>
+
+      <AlertDialog open={!!restoreTarget} onOpenChange={(v) => { if (!v && !restoring) setRestoreTarget(null); }}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading text-gold">Restore Member</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Restore <span className="font-semibold text-foreground">{restoreTarget?.name}</span> to the active roster? Their last-known stats will be brought back.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={restoring}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestore} disabled={restoring}>
+              {restoring ? "Restoring..." : "Restore"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
