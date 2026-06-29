@@ -1,13 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { RankBadge } from "@/components/RankBadge";
 import { calculateTotalScore, getRank } from "@/lib/scoring";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
-import { Archive } from "lucide-react";
+import { useMembers } from "@/hooks/use-members";
+import { Archive, ArchiveRestore } from "lucide-react";
+import { toast } from "sonner";
+import type { ArchivedMember } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/archive")({
   component: ArchivePage,
