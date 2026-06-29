@@ -1,0 +1,1 @@
+UPDATE public.event_types SET is_optional = true WHERE key = 'capital';

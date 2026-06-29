@@ -191,11 +191,13 @@ function MembersPage() {
                           const d = new Date(member.updatedAt);
                           const daysSince = Math.floor((Date.now() - d.getTime()) / 86400000);
                           const formatted = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-                          return (
-                            <span className={daysSince > 30 ? "text-orange-400" : "text-muted-foreground"}>
-                              {formatted}
-                            </span>
-                          );
+                           const className =
+                             daysSince >= 30
+                               ? "text-warn-stale font-semibold"
+                               : daysSince >= 15
+                                 ? "text-warn-aging font-medium"
+                                 : "text-muted-foreground";
+                           return <span className={className}>{formatted}</span>;
                         })()}
                       </TableCell>
                       {METRIC_DEFINITIONS.map((def) => (
