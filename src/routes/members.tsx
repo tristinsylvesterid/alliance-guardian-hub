@@ -196,7 +196,7 @@ function MembersPage() {
                                ? "text-warn-stale font-semibold"
                                : daysSince >= 15
                                  ? "text-warn-aging font-medium"
-                                 : "text-muted-foreground";
+                                 : "text-warn-fresh font-medium";
                            return <span className={className}>{formatted}</span>;
                         })()}
                       </TableCell>
