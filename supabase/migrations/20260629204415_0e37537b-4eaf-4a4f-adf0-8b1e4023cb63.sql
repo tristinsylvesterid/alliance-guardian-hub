@@ -1,0 +1,1 @@
+ALTER TABLE public.event_types ALTER COLUMN is_optional SET DEFAULT true;
