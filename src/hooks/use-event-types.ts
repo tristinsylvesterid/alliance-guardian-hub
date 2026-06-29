@@ -23,7 +23,7 @@ export function useEventTypes() {
           key: "engagement",
           name: "Engagement",
           has_svs_toggle: false,
-          is_optional: false,
+          is_optional: true,
           input_type: "status",
           point_weight: 1,
         } as any);
@@ -66,7 +66,7 @@ export function useEventTypes() {
     [eventTypes],
   );
 
-  async function addEventType(name: string, isOptional = false) {
+  async function addEventType(name: string, isOptional = true) {
     const key = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/(^_|_$)/g, "");
     await supabase.from("event_types").insert({ key, name, has_svs_toggle: false, is_optional: isOptional });
     await fetchEventTypes();
