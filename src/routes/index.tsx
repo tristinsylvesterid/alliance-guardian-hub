@@ -5,7 +5,8 @@ import { RankBadge } from "@/components/RankBadge";
 import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents } from "@/hooks/use-weekly-events";
-import { type Rank } from "@/lib/scoring";
+import { calculateInterimScore, getRank, type Rank } from "@/lib/scoring";
+import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
 import { Users, Trophy, Calendar, TrendingUp, Minus } from "lucide-react";
 
@@ -24,25 +25,42 @@ function Dashboard() {
   const { eventTypes } = useEventTypes();
   const { currentWeek, getStatus } = useWeeklyEvents();
   const { latest, latestByMember, latestMax, hasArchive, loading } = useArchivedSnapshot();
+  const { thresholds } = useRankThresholds();
 
   const total = rawMembers.length;
 
   const membersWithScores = rawMembers.map((m) => {
     const snap = latestByMember[m.id];
+    if (snap) {
+      return {
+        ...m,
+        score: snap.totalScore,
+        scoreMax: latestMax,
+        rank: ((snap.rank as Rank | null) ?? "R1") as Rank,
+        hasSnap: true,
+        interim: false,
+      };
+    }
+    const interim = calculateInterimScore(m.metrics);
+    const rank = getRank(interim.earned, m.leadershipRank as Rank | undefined, thresholds, interim.max);
     return {
       ...m,
-      score: snap?.totalScore ?? 0,
-      rank: ((snap?.rank as Rank | null) ?? "R1") as Rank,
-      hasSnap: !!snap,
+      score: interim.earned,
+      scoreMax: interim.max,
+      rank,
+      hasSnap: false,
+      interim: true,
     };
-  }).sort((a, b) => b.score - a.score);
+  }).sort((a, b) => {
+    const aPct = a.scoreMax ? a.score / a.scoreMax : 0;
+    const bPct = b.scoreMax ? b.score / b.scoreMax : 0;
+    return bPct - aPct;
+  });
 
   const rankCounts: Record<Rank, number> = { R1: 0, R2: 0, R3: 0, R4: 0, R5: 0 };
-  if (hasArchive) {
-    membersWithScores.forEach((m) => {
-      if (m.hasSnap) rankCounts[m.rank]++;
-    });
-  }
+  membersWithScores.forEach((m) => {
+    rankCounts[m.rank]++;
+  });
 
   const snapMembers = membersWithScores.filter((m) => m.hasSnap);
   const avgScore = snapMembers.length
