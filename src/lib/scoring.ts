@@ -136,6 +136,41 @@ export const AVA_METRIC: MetricDefinition = {
 
 export const MAX_TOTAL_POINTS = METRIC_DEFINITIONS.reduce((sum, m) => sum + m.maxPoints, 0);
 
+/**
+ * Metric keys used for interim ranking of members without an archived snapshot.
+ * Pure stat-based: no event participation, no engagement.
+ */
+export const INTERIM_METRIC_KEYS = [
+  "hqLevel",
+  "rallyCap",
+  "techPower",
+  "pcHeroes",
+  "vehiclePower",
+  "allianceRecognition",
+  "killCount",
+] as const;
+
+/**
+ * Compute interim score (earned + max) from the fixed 7-metric subset.
+ * Used for newly added members until the next weekly archive snapshots them.
+ */
+export function calculateInterimScore(
+  metrics: Record<string, number | boolean | string>,
+  defs: MetricDefinition[] = METRIC_DEFINITIONS,
+): { earned: number; max: number } {
+  let earned = 0;
+  let max = 0;
+  for (const key of INTERIM_METRIC_KEYS) {
+    const def = defs.find((d) => d.key === key);
+    if (!def) continue;
+    max += def.maxPoints;
+    const val = metrics[key];
+    if (val === undefined || val === null) continue;
+    earned += calculateMetricPoints(def, val);
+  }
+  return { earned, max };
+}
+
 export function calculateMetricPoints(metric: MetricDefinition, value: number | boolean | string): number {
   if (metric.type === "boolean") {
     const boolVal = typeof value === "boolean" ? value : value === "yes" || value === "Yes";
