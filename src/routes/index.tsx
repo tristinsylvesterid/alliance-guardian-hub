@@ -140,7 +140,7 @@ function Dashboard() {
                           <div className="h-2 rounded-full bg-secondary">
                             <div
                               className="h-2 rounded-full bg-gold transition-all"
-                              style={{ width: `${snapMembers.length ? (rankCounts[rank] / snapMembers.length) * 100 : 0}%` }}
+                              style={{ width: `${membersWithScores.length ? (rankCounts[rank] / membersWithScores.length) * 100 : 0}%` }}
                             />
                           </div>
                         </div>
@@ -203,12 +203,17 @@ function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {membersWithScores.filter(m => m.hasSnap).slice(0, 10).map((m, i) => (
+                  {membersWithScores.slice(0, 10).map((m, i) => (
                     <div key={m.id} className="flex items-center gap-4 rounded-lg bg-secondary/50 px-4 py-3">
                       <span className="w-6 text-center font-heading text-sm font-bold text-gold-muted">#{i + 1}</span>
                       <span className="flex-1 font-medium text-foreground">{m.name}</span>
                       <RankBadge rank={m.rank} />
-                      <span className="w-16 text-right text-sm text-muted-foreground">{m.score} pts</span>
+                      {m.interim && (
+                        <span className="rounded border border-gold/30 bg-gold/10 px-1 py-0.5 text-[9px] uppercase tracking-wide text-gold">
+                          Interim
+                        </span>
+                      )}
+                      <span className="w-20 text-right text-sm text-muted-foreground">{m.score}<span className="text-xs">/{m.scoreMax}</span></span>
                     </div>
                   ))}
                 </div>
