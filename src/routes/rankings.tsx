@@ -158,24 +158,17 @@ function RankingsPage() {
                         <div className="text-right">
                           <span className="text-2xl font-bold text-gold">{m.score}</span>
                           <span className="text-sm text-muted-foreground">/{m.scoreMax}</span>
-                        </div>
-                                    ? "bg-gold/20 text-gold"
-                                    : b.points > 0
-                                    ? "bg-secondary text-muted-foreground"
-                                    : "bg-secondary/30 text-muted-foreground/50"
-                                }`}
-                                title={`${b.metric}: ${b.points}/${b.maxPoints}`}
-                              >
-                                {b.points}/{b.maxPoints}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-2xl font-bold text-gold">{m.score}</span>
-                          <span className="text-sm text-muted-foreground">/{latestMax}</span>
-                        </div>
                       </div>
+                    </CardContent>
+                  </Card>
+                ))}
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
+    </AppLayout>
+  );
+}
                     </CardContent>
                   </Card>
                 ))}
