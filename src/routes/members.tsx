@@ -9,7 +9,8 @@ import { RankBadge } from "@/components/RankBadge";
 import { MemberFormDialog } from "@/components/MemberFormDialog";
 import { ArchiveConfirmDialog } from "@/components/ArchiveConfirmDialog";
 import { type Member } from "@/lib/mock-data";
-import { METRIC_DEFINITIONS, type Rank } from "@/lib/scoring";
+import { METRIC_DEFINITIONS, calculateInterimScore, getRank, type Rank } from "@/lib/scoring";
+import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useMembers } from "@/hooks/use-members";
 import { useMemberNameHistory } from "@/hooks/use-member-name-history";
@@ -36,14 +37,29 @@ function MembersPage() {
   const { archiveMember } = useArchivedMembers();
   const { getHistoryFor, memberMatchesPreviousName } = useMemberNameHistory();
   const { latestByMember, hasArchive } = useArchivedSnapshot();
+  const { thresholds } = useRankThresholds();
 
   const membersWithScores = members.map((m) => {
     const snap = latestByMember[m.id];
+    if (snap) {
+      return {
+        ...m,
+        score: snap.totalScore,
+        scoreMax: undefined as number | undefined,
+        rank: (snap.rank as Rank | null) ?? "R1" as Rank,
+        hasSnap: true,
+        interim: false,
+      };
+    }
+    const interim = calculateInterimScore(m.metrics);
+    const rank = getRank(interim.earned, m.leadershipRank as Rank | undefined, thresholds, interim.max);
     return {
       ...m,
-      score: snap?.totalScore ?? 0,
-      rank: ((snap?.rank as Rank | null) ?? "R1") as Rank,
-      hasSnap: !!snap,
+      score: interim.earned,
+      scoreMax: interim.max,
+      rank,
+      hasSnap: false,
+      interim: true,
     };
   });
 
@@ -176,14 +192,30 @@ function MembersPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {member.hasSnap ? (
-                          <RankBadge rank={member.rank} />
+                        {member.hasSnap || member.interim ? (
+                          <div className="flex items-center gap-1.5">
+                            <RankBadge rank={member.rank} />
+                            {member.interim && (
+                              <span className="rounded border border-gold/30 bg-gold/10 px-1 py-0.5 text-[9px] uppercase tracking-wide text-gold">
+                                Interim
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell className="text-center font-bold text-gold">
-                        {member.hasSnap ? member.score : <span className="text-muted-foreground">—</span>}
+                        {member.hasSnap ? (
+                          member.score
+                        ) : member.interim ? (
+                          <span>
+                            {member.score}
+                            <span className="text-xs text-muted-foreground">/{member.scoreMax}</span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center text-sm">
                         {(() => {

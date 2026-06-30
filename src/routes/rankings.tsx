@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RankBadge } from "@/components/RankBadge";
 import { useMembers } from "@/hooks/use-members";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
-import { calculateMetricPoints, type Rank } from "@/lib/scoring";
+import { calculateMetricPoints, calculateInterimScore, getRank, type Rank } from "@/lib/scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -50,8 +50,12 @@ function RankingsPage() {
   const membersWithScores = members
     .map((m) => {
       const snap = latestByMember[m.id];
-      const score = snap?.totalScore ?? 0;
-      const rank: Rank = (snap?.rank as Rank | null) ?? "R1";
+      const interim = !snap ? calculateInterimScore(m.metrics) : null;
+      const score = snap?.totalScore ?? interim?.earned ?? 0;
+      const scoreMax = snap ? latestMax : interim?.max ?? 0;
+      const rank: Rank = snap
+        ? ((snap.rank as Rank | null) ?? "R1")
+        : getRank(interim?.earned ?? 0, m.leadershipRank as Rank | undefined, thresholds, interim?.max);
       const metricsForBreakdown = snap?.metrics ?? m.metrics;
       const breakdown = METRIC_DEFINITIONS.map((def) => ({
         metric: def.name,
@@ -61,9 +65,13 @@ function RankingsPage() {
             ? calculateMetricPoints(def, metricsForBreakdown[def.key])
             : 0,
       }));
-      return { ...m, score, rank, breakdown, hasSnap: !!snap };
+      return { ...m, score, scoreMax, rank, breakdown, hasSnap: !!snap, interim: !snap };
     })
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => {
+      const aPct = a.scoreMax ? a.score / a.scoreMax : 0;
+      const bPct = b.scoreMax ? b.score / b.scoreMax : 0;
+      return bPct - aPct;
+    });
 
   return (
     <AppLayout>
@@ -123,8 +131,10 @@ function RankingsPage() {
                           <div className="flex items-center gap-3">
                             <span className="font-medium text-foreground">{m.name}</span>
                             <RankBadge rank={m.rank} />
-                            {!m.hasSnap && (
-                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">No snapshot</span>
+                            {m.interim && (
+                              <span className="rounded border border-gold/30 bg-gold/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-gold">
+                                Interim
+                              </span>
                             )}
                           </div>
                           <div className="mt-2 flex flex-wrap gap-1">
@@ -147,7 +157,7 @@ function RankingsPage() {
                         </div>
                         <div className="text-right">
                           <span className="text-2xl font-bold text-gold">{m.score}</span>
-                          <span className="text-sm text-muted-foreground">/{latestMax}</span>
+                          <span className="text-sm text-muted-foreground">/{m.scoreMax}</span>
                         </div>
                       </div>
                     </CardContent>

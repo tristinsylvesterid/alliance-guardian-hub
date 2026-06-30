@@ -10,7 +10,7 @@ import { useWeeklyEvents } from "@/hooks/use-weekly-events";
 
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
-import { type Rank } from "@/lib/scoring";
+import { calculateInterimScore, getRank, type Rank } from "@/lib/scoring";
 import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
 import {
   evaluateMemberRisk,
@@ -98,9 +98,13 @@ function AtRiskPage() {
         }, liveMetrics, BASE_MAX_POINTS);
 
         const snap = latestByMember[m.id];
-        const score = snap?.totalScore ?? 0;
-        const rank: Rank = (snap?.rank as Rank | null) ?? "R1";
-        return { ...m, flags, score, rank, attended, totalOpps: activeEvents.length };
+        const interim = !snap ? calculateInterimScore(m.metrics) : null;
+        const score = snap?.totalScore ?? interim?.earned ?? 0;
+        const scoreMax = snap ? displayMax : interim?.max ?? 0;
+        const rank: Rank = snap
+          ? ((snap.rank as Rank | null) ?? "R1")
+          : getRank(interim?.earned ?? 0, m.leadershipRank as Rank | undefined, thresholds, interim?.max);
+        return { ...m, flags, score, scoreMax, rank, isInterim: !snap, attended, totalOpps: activeEvents.length };
       })
       .filter((m) => m.flags.length > 0)
       .sort((a, b) => {
@@ -213,10 +217,19 @@ function AtRiskPage() {
                       {visible.map((m) => (
                         <TableRow key={m.id}>
                           <TableCell className="font-medium">{m.name}</TableCell>
-                          <TableCell><RankBadge rank={m.rank} /></TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <RankBadge rank={m.rank} />
+                              {m.isInterim && (
+                                <span className="rounded border border-gold/30 bg-gold/10 px-1 py-0.5 text-[9px] uppercase tracking-wide text-gold">
+                                  Interim
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-muted-foreground">
                             <span className="text-gold font-semibold">{m.score}</span>
-                            <span className="text-xs">/{displayMax}</span>
+                            <span className="text-xs">/{m.scoreMax}</span>
                           </TableCell>
                           <TableCell>
                             <span className="font-heading text-sm text-gold">{m.flags.length}</span>

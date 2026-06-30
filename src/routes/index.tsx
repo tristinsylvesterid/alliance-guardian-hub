@@ -5,7 +5,8 @@ import { RankBadge } from "@/components/RankBadge";
 import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents } from "@/hooks/use-weekly-events";
-import { type Rank } from "@/lib/scoring";
+import { calculateInterimScore, getRank, type Rank } from "@/lib/scoring";
+import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
 import { Users, Trophy, Calendar, TrendingUp, Minus } from "lucide-react";
 
@@ -24,25 +25,42 @@ function Dashboard() {
   const { eventTypes } = useEventTypes();
   const { currentWeek, getStatus } = useWeeklyEvents();
   const { latest, latestByMember, latestMax, hasArchive, loading } = useArchivedSnapshot();
+  const { thresholds } = useRankThresholds();
 
   const total = rawMembers.length;
 
   const membersWithScores = rawMembers.map((m) => {
     const snap = latestByMember[m.id];
+    if (snap) {
+      return {
+        ...m,
+        score: snap.totalScore,
+        scoreMax: latestMax,
+        rank: ((snap.rank as Rank | null) ?? "R1") as Rank,
+        hasSnap: true,
+        interim: false,
+      };
+    }
+    const interim = calculateInterimScore(m.metrics);
+    const rank = getRank(interim.earned, m.leadershipRank as Rank | undefined, thresholds, interim.max);
     return {
       ...m,
-      score: snap?.totalScore ?? 0,
-      rank: ((snap?.rank as Rank | null) ?? "R1") as Rank,
-      hasSnap: !!snap,
+      score: interim.earned,
+      scoreMax: interim.max,
+      rank,
+      hasSnap: false,
+      interim: true,
     };
-  }).sort((a, b) => b.score - a.score);
+  }).sort((a, b) => {
+    const aPct = a.scoreMax ? a.score / a.scoreMax : 0;
+    const bPct = b.scoreMax ? b.score / b.scoreMax : 0;
+    return bPct - aPct;
+  });
 
   const rankCounts: Record<Rank, number> = { R1: 0, R2: 0, R3: 0, R4: 0, R5: 0 };
-  if (hasArchive) {
-    membersWithScores.forEach((m) => {
-      if (m.hasSnap) rankCounts[m.rank]++;
-    });
-  }
+  membersWithScores.forEach((m) => {
+    rankCounts[m.rank]++;
+  });
 
   const snapMembers = membersWithScores.filter((m) => m.hasSnap);
   const avgScore = snapMembers.length
@@ -122,7 +140,7 @@ function Dashboard() {
                           <div className="h-2 rounded-full bg-secondary">
                             <div
                               className="h-2 rounded-full bg-gold transition-all"
-                              style={{ width: `${snapMembers.length ? (rankCounts[rank] / snapMembers.length) * 100 : 0}%` }}
+                              style={{ width: `${membersWithScores.length ? (rankCounts[rank] / membersWithScores.length) * 100 : 0}%` }}
                             />
                           </div>
                         </div>
@@ -185,12 +203,17 @@ function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {membersWithScores.filter(m => m.hasSnap).slice(0, 10).map((m, i) => (
+                  {membersWithScores.slice(0, 10).map((m, i) => (
                     <div key={m.id} className="flex items-center gap-4 rounded-lg bg-secondary/50 px-4 py-3">
                       <span className="w-6 text-center font-heading text-sm font-bold text-gold-muted">#{i + 1}</span>
                       <span className="flex-1 font-medium text-foreground">{m.name}</span>
                       <RankBadge rank={m.rank} />
-                      <span className="w-16 text-right text-sm text-muted-foreground">{m.score} pts</span>
+                      {m.interim && (
+                        <span className="rounded border border-gold/30 bg-gold/10 px-1 py-0.5 text-[9px] uppercase tracking-wide text-gold">
+                          Interim
+                        </span>
+                      )}
+                      <span className="w-20 text-right text-sm text-muted-foreground">{m.score}<span className="text-xs">/{m.scoreMax}</span></span>
                     </div>
                   ))}
                 </div>

@@ -1,40 +1,44 @@
-## Goal
+## Problem
 
-Let admins reset any user's password and delete user accounts directly from the User Management page (`/admin`).
+New members show no rank because every ranking surface (Rankings, Dashboard, Members, At-Risk) reads from the **last archived week's snapshot**. A member added after the most recent archive has no snapshot row, so they fall back to R1 / "No snapshot" until the next week is archived.
 
-## UI changes (`src/routes/admin.tsx`)
+## Fix
 
-Add two action buttons to each row in the users table (next to the existing role/created columns):
+Give new (and any un-snapshotted) members an **interim rank** computed live from a fixed subset of their current metrics, compared against that subset's maximum possible points.
 
-- **Reset Password** (key icon) — opens a dialog with a new-password input (min 8 chars) + confirm field, then "Set Password" button.
-- **Delete Account** (trash icon) — opens an AlertDialog confirming the user's display name, then "Delete Account" button. Hidden/disabled for the row matching the current signed-in admin (no self-delete).
+### Scoring subset (interim rank only)
 
-Both show toast feedback on success/failure and refresh the user list.
+Only these 7 metrics count toward the interim rank:
 
-## Backend (extend existing `create-officer` pattern)
+- HQ Level
+- Rally Cap
+- Tech Power
+- PC Heroes (Hero)
+- Vehicle Power
+- Alliance Recognition Research
+- Kill Count
 
-Create two new edge functions following the same admin-verification pattern already used by `create-officer` (verify caller has `admin` role via service role client):
+Sum = `subsetEarned`. Max = sum of each metric's `maxPoints` from `METRIC_DEFINITIONS` for those 7 keys = `subsetMax`. Rank is resolved via existing `getRank(subsetEarned, leadershipRank, thresholds, subsetMax)` so the same percent thresholds (R1/R2/R3) and leadership overrides (R4/R5) apply.
 
-1. **`supabase/functions/reset-user-password/index.ts`**
-   - Input: `{ userId: string, newPassword: string }`
-   - Validates caller is admin, password ≥ 8 chars
-   - Calls `adminClient.auth.admin.updateUserById(userId, { password })`
+### Where it applies
 
-2. **`supabase/functions/delete-user/index.ts`**
-   - Input: `{ userId: string }`
-   - Validates caller is admin and `userId !== caller.id` (defense in depth against self-delete)
-   - Calls `adminClient.auth.admin.deleteUser(userId)` — cascades to `profiles` and `user_roles` via existing FK `ON DELETE CASCADE`
+In every place that currently reads `latestByMember[m.id]`:
 
-Both return `{ success: true }` or `{ error }` with proper status codes and CORS headers matching the existing function.
+- `src/routes/rankings.tsx`
+- `src/routes/members.tsx`
+- `src/routes/at-risk.tsx`
+- `src/routes/index.tsx` (dashboard)
 
-## Out of scope
+If a member **has** an archived snapshot → keep current behavior (snapshot wins).
+If a member has **no** snapshot → compute interim rank/score from the 7-metric subset and display it. Mark these rows with an "Interim" badge (replaces today's "No snapshot" label) so officers can tell archived vs live data apart. Sorting on Rankings uses the interim score (out of `subsetMax`) alongside snapshot scores — the score-out-of-max ordering already normalizes that.
 
-- No user self-service "forgot password" email flow (usernames here aren't real emails — `@nova.local`).
-- No schema changes; existing cascade deletes handle profile/role cleanup.
-- No changes to other routes.
+### Files touched
 
-## Files
+- `src/lib/scoring.ts` — add `INTERIM_METRIC_KEYS` constant + `calculateInterimScore(metrics, defs)` returning `{ earned, max }`.
+- `src/routes/rankings.tsx`, `src/routes/members.tsx`, `src/routes/at-risk.tsx`, `src/routes/index.tsx` — when no snapshot, compute interim score and rank instead of defaulting to 0 / R1. Show "Interim" tag.
 
-- Edit: `src/routes/admin.tsx`
-- Create: `supabase/functions/reset-user-password/index.ts`
-- Create: `supabase/functions/delete-user/index.ts`
+### Out of scope
+
+- No DB migration, no auto-snapshot on member create (interim is purely a display fallback; next weekly archive will replace it with a real snapshot).
+- No change to archiving logic or the full 11-metric scoring used for archived weeks.
+- No change to Rank Changes page (it intentionally compares two archived weeks).
