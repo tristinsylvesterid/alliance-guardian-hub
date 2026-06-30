@@ -158,17 +158,8 @@ function RankingsPage() {
                         <div className="text-right">
                           <span className="text-2xl font-bold text-gold">{m.score}</span>
                           <span className="text-sm text-muted-foreground">/{m.scoreMax}</span>
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </TabsContent>
-          ))}
-        </Tabs>
-      </div>
-    </AppLayout>
-  );
-}
                     </CardContent>
                   </Card>
                 ))}
