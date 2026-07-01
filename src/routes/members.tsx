@@ -36,31 +36,12 @@ function MembersPage() {
   const [archiveTarget, setArchiveTarget] = useState<Member | null>(null);
   const { archiveMember } = useArchivedMembers();
   const { getHistoryFor, memberMatchesPreviousName } = useMemberNameHistory();
-  const { latestByMember, hasArchive } = useArchivedSnapshot();
-  const { thresholds } = useRankThresholds();
+  const { getDisplayFor } = useArchivedSnapshot();
+  useRankThresholds();
 
   const membersWithScores = members.map((m) => {
-    const snap = latestByMember[m.id];
-    if (snap) {
-      return {
-        ...m,
-        score: snap.totalScore,
-        scoreMax: undefined as number | undefined,
-        rank: (snap.rank as Rank | null) ?? "R1" as Rank,
-        hasSnap: true,
-        interim: false,
-      };
-    }
-    const interim = calculateInterimScore(m.metrics);
-    const rank = getRank(interim.earned, m.leadershipRank as Rank | undefined, thresholds, interim.max);
-    return {
-      ...m,
-      score: interim.earned,
-      scoreMax: interim.max,
-      rank,
-      hasSnap: false,
-      interim: true,
-    };
+    const d = getDisplayFor(m);
+    return { ...m, ...d };
   });
 
   const filtered = membersWithScores.filter((m) => {
