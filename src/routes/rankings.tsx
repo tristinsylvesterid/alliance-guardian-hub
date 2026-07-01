@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RankBadge } from "@/components/RankBadge";
 import { useMembers } from "@/hooks/use-members";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
-import { calculateMetricPoints, calculateInterimScore, getRank, type Rank } from "@/lib/scoring";
+import { calculateMetricPoints, type Rank } from "@/lib/scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
