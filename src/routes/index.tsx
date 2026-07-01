@@ -5,7 +5,7 @@ import { RankBadge } from "@/components/RankBadge";
 import { useEventTypes } from "@/hooks/use-event-types";
 import { useMembers } from "@/hooks/use-members";
 import { useWeeklyEvents } from "@/hooks/use-weekly-events";
-import { calculateInterimScore, getRank, type Rank } from "@/lib/scoring";
+import { type Rank } from "@/lib/scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
 import { Users, Trophy, Calendar, TrendingUp, Minus } from "lucide-react";
