@@ -4,7 +4,8 @@ import { useWeeklyEvents, type WeeklyEventData } from "@/hooks/use-weekly-events
 import { useEventScoring } from "@/hooks/use-event-scoring";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
-import { getRank, type Rank } from "@/lib/scoring";
+import type { Member } from "@/lib/mock-data";
+import { calculateInterimScore, calculateTotalScore, getRank, type Rank } from "@/lib/scoring";
 
 
 export interface MemberSnapshot {
@@ -54,7 +55,8 @@ async function fetchWeekSnapshot(weekId: string): Promise<Record<string, MemberS
 export function useArchivedSnapshot() {
   const { archivedWeeks } = useWeeklyEvents();
   const { getEventMaxForWeek } = useEventScoring();
-  const { maxTotal: BASE_MAX_POINTS } = useScoringConfig();
+  const { maxTotal: BASE_MAX_POINTS, metrics: metricDefs } = useScoringConfig();
+  const { thresholds } = useRankThresholds();
 
   const latest: WeeklyEventData | null = archivedWeeks[0] ?? null;
   const previous: WeeklyEventData | null = archivedWeeks[1] ?? null;
@@ -83,6 +85,54 @@ export function useArchivedSnapshot() {
   const latestMax = BASE_MAX_POINTS + latestEventMax;
   const previousMax = BASE_MAX_POINTS + previousEventMax;
 
+  /**
+   * Live display: recompute the fixed metric portion from the member's current
+   * metrics, then add the archived event bonus from the last completed week.
+   * This keeps stat edits visible immediately without waiting for the next
+   * weekly archive, while preserving last week's AvA / event points.
+   */
+  const getDisplayFor = useCallback(
+    (
+      member: Member,
+    ): {
+      score: number;
+      scoreMax: number;
+      rank: Rank;
+      hasSnap: boolean;
+      interim: boolean;
+    } => {
+      const snap = latestByMember[member.id];
+      if (snap) {
+        const archivedBase = calculateTotalScore(snap.metrics, metricDefs);
+        const eventBonus = Math.max(0, (snap.totalScore ?? 0) - archivedBase);
+        const liveBase = calculateTotalScore(member.metrics, metricDefs);
+        const score = Math.min(latestMax, liveBase + eventBonus);
+        const rank = getRank(
+          score,
+          member.leadershipRank as Rank | undefined,
+          thresholds,
+          latestMax,
+        );
+        return { score, scoreMax: latestMax, rank, hasSnap: true, interim: false };
+      }
+      const interim = calculateInterimScore(member.metrics, metricDefs);
+      const rank = getRank(
+        interim.earned,
+        member.leadershipRank as Rank | undefined,
+        thresholds,
+        interim.max,
+      );
+      return {
+        score: interim.earned,
+        scoreMax: interim.max,
+        rank,
+        hasSnap: false,
+        interim: true,
+      };
+    },
+    [latestByMember, metricDefs, latestMax, thresholds],
+  );
+
   return {
     latest,
     previous,
@@ -94,6 +144,7 @@ export function useArchivedSnapshot() {
     hasTwoArchives: !!latest && !!previous,
     loading,
     refresh: load,
+    getDisplayFor,
   };
 }
 

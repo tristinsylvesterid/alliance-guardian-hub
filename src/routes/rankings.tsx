@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RankBadge } from "@/components/RankBadge";
 import { useMembers } from "@/hooks/use-members";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
-import { calculateMetricPoints, calculateInterimScore, getRank, type Rank } from "@/lib/scoring";
+import { calculateMetricPoints, type Rank } from "@/lib/scoring";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useArchivedSnapshot } from "@/hooks/use-archived-snapshot";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,7 +23,7 @@ function RankingsPage() {
   const { members } = useMembers();
   const { metrics: METRIC_DEFINITIONS } = useScoringConfig();
   const { thresholds } = useRankThresholds();
-  const { latest, latestByMember, latestMax, hasArchive, loading } = useArchivedSnapshot();
+  const { latest, latestMax, hasArchive, loading, getDisplayFor } = useArchivedSnapshot();
 
   const ranks: Rank[] = ["R5", "R4", "R3", "R2", "R1"];
 
@@ -49,14 +49,11 @@ function RankingsPage() {
 
   const membersWithScores = members
     .map((m) => {
-      const snap = latestByMember[m.id];
-      const interim = !snap ? calculateInterimScore(m.metrics) : null;
-      const score = snap?.totalScore ?? interim?.earned ?? 0;
-      const scoreMax = snap ? latestMax : interim?.max ?? 0;
-      const rank: Rank = snap
-        ? ((snap.rank as Rank | null) ?? "R1")
-        : getRank(interim?.earned ?? 0, m.leadershipRank as Rank | undefined, thresholds, interim?.max);
-      const metricsForBreakdown = snap?.metrics ?? m.metrics;
+      const d = getDisplayFor(m);
+      const snap = d.hasSnap ? { metrics: m.metrics } : null;
+      // For breakdown display, use current live metrics either way so
+      // per-metric badges reflect current stats too.
+      const metricsForBreakdown = snap ? m.metrics : m.metrics;
       const breakdown = METRIC_DEFINITIONS.map((def) => ({
         metric: def.name,
         maxPoints: def.maxPoints,
@@ -65,7 +62,7 @@ function RankingsPage() {
             ? calculateMetricPoints(def, metricsForBreakdown[def.key])
             : 0,
       }));
-      return { ...m, score, scoreMax, rank, breakdown, hasSnap: !!snap, interim: !snap };
+      return { ...m, ...d, breakdown };
     })
     .sort((a, b) => {
       const aPct = a.scoreMax ? a.score / a.scoreMax : 0;

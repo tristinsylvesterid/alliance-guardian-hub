@@ -9,8 +9,7 @@ import { RankBadge } from "@/components/RankBadge";
 import { MemberFormDialog } from "@/components/MemberFormDialog";
 import { ArchiveConfirmDialog } from "@/components/ArchiveConfirmDialog";
 import { type Member } from "@/lib/mock-data";
-import { METRIC_DEFINITIONS, calculateInterimScore, getRank, type Rank } from "@/lib/scoring";
-import { useRankThresholds } from "@/hooks/use-rank-thresholds";
+import { METRIC_DEFINITIONS } from "@/lib/scoring";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useMembers } from "@/hooks/use-members";
 import { useMemberNameHistory } from "@/hooks/use-member-name-history";
@@ -36,31 +35,11 @@ function MembersPage() {
   const [archiveTarget, setArchiveTarget] = useState<Member | null>(null);
   const { archiveMember } = useArchivedMembers();
   const { getHistoryFor, memberMatchesPreviousName } = useMemberNameHistory();
-  const { latestByMember, hasArchive } = useArchivedSnapshot();
-  const { thresholds } = useRankThresholds();
+  const { getDisplayFor } = useArchivedSnapshot();
 
   const membersWithScores = members.map((m) => {
-    const snap = latestByMember[m.id];
-    if (snap) {
-      return {
-        ...m,
-        score: snap.totalScore,
-        scoreMax: undefined as number | undefined,
-        rank: (snap.rank as Rank | null) ?? "R1" as Rank,
-        hasSnap: true,
-        interim: false,
-      };
-    }
-    const interim = calculateInterimScore(m.metrics);
-    const rank = getRank(interim.earned, m.leadershipRank as Rank | undefined, thresholds, interim.max);
-    return {
-      ...m,
-      score: interim.earned,
-      scoreMax: interim.max,
-      rank,
-      hasSnap: false,
-      interim: true,
-    };
+    const d = getDisplayFor(m);
+    return { ...m, ...d };
   });
 
   const filtered = membersWithScores.filter((m) => {
