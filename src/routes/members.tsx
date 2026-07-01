@@ -10,7 +10,6 @@ import { MemberFormDialog } from "@/components/MemberFormDialog";
 import { ArchiveConfirmDialog } from "@/components/ArchiveConfirmDialog";
 import { type Member } from "@/lib/mock-data";
 import { METRIC_DEFINITIONS } from "@/lib/scoring";
-import { useRankThresholds } from "@/hooks/use-rank-thresholds";
 import { useArchivedMembers } from "@/hooks/use-archived-members";
 import { useMembers } from "@/hooks/use-members";
 import { useMemberNameHistory } from "@/hooks/use-member-name-history";
