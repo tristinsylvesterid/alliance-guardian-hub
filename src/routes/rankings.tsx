@@ -23,7 +23,7 @@ function RankingsPage() {
   const { members } = useMembers();
   const { metrics: METRIC_DEFINITIONS } = useScoringConfig();
   const { thresholds } = useRankThresholds();
-  const { latest, latestByMember, latestMax, hasArchive, loading } = useArchivedSnapshot();
+  const { latest, latestMax, hasArchive, loading, getDisplayFor } = useArchivedSnapshot();
 
   const ranks: Rank[] = ["R5", "R4", "R3", "R2", "R1"];
 
