@@ -4,7 +4,8 @@ import { useWeeklyEvents, type WeeklyEventData } from "@/hooks/use-weekly-events
 import { useEventScoring } from "@/hooks/use-event-scoring";
 import { useScoringConfig } from "@/hooks/use-scoring-config";
 import { useRankThresholds } from "@/hooks/use-rank-thresholds";
-import { getRank, type Rank } from "@/lib/scoring";
+import type { Member } from "@/lib/mock-data";
+import { calculateInterimScore, calculateTotalScore, getRank, type Rank } from "@/lib/scoring";
 
 
 export interface MemberSnapshot {
