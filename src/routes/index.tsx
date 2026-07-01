@@ -24,7 +24,6 @@ function Dashboard() {
   const { eventTypes } = useEventTypes();
   const { currentWeek, getStatus } = useWeeklyEvents();
   const { latest, latestMax, hasArchive, loading, getDisplayFor } = useArchivedSnapshot();
-  useRankThresholds();
 
   const total = rawMembers.length;
 
