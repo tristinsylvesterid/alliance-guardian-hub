@@ -36,7 +36,6 @@ function MembersPage() {
   const { archiveMember } = useArchivedMembers();
   const { getHistoryFor, memberMatchesPreviousName } = useMemberNameHistory();
   const { getDisplayFor } = useArchivedSnapshot();
-  useRankThresholds();
 
   const membersWithScores = members.map((m) => {
     const d = getDisplayFor(m);
