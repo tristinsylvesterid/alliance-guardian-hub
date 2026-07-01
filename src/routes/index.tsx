@@ -24,33 +24,14 @@ function Dashboard() {
   const { members: rawMembers } = useMembers();
   const { eventTypes } = useEventTypes();
   const { currentWeek, getStatus } = useWeeklyEvents();
-  const { latest, latestByMember, latestMax, hasArchive, loading } = useArchivedSnapshot();
-  const { thresholds } = useRankThresholds();
+  const { latest, latestMax, hasArchive, loading, getDisplayFor } = useArchivedSnapshot();
+  useRankThresholds();
 
   const total = rawMembers.length;
 
   const membersWithScores = rawMembers.map((m) => {
-    const snap = latestByMember[m.id];
-    if (snap) {
-      return {
-        ...m,
-        score: snap.totalScore,
-        scoreMax: latestMax,
-        rank: ((snap.rank as Rank | null) ?? "R1") as Rank,
-        hasSnap: true,
-        interim: false,
-      };
-    }
-    const interim = calculateInterimScore(m.metrics);
-    const rank = getRank(interim.earned, m.leadershipRank as Rank | undefined, thresholds, interim.max);
-    return {
-      ...m,
-      score: interim.earned,
-      scoreMax: interim.max,
-      rank,
-      hasSnap: false,
-      interim: true,
-    };
+    const d = getDisplayFor(m);
+    return { ...m, ...d };
   }).sort((a, b) => {
     const aPct = a.scoreMax ? a.score / a.scoreMax : 0;
     const bPct = b.scoreMax ? b.score / b.scoreMax : 0;
