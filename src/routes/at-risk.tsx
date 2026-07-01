@@ -35,7 +35,7 @@ function AtRiskPage() {
   const { activeWeeks, archivedWeeks, getStatus, getValue, isEventActive } = useWeeklyEvents();
   const { thresholds } = useRankThresholds();
   const [filter, setFilter] = useState<string | null>(null);
-  const { getDisplayFor, hasArchive: _hasArchive } = useArchivedSnapshot();
+  const { getDisplayFor } = useArchivedSnapshot();
   const { metrics: liveMetrics, maxTotal: BASE_MAX_POINTS } = useScoringConfig();
 
   const currentWeek = activeWeeks[0];
